@@ -94,17 +94,34 @@ export function TransfersPage() {
     queryKey: ['transfers', 'pending'],
     queryFn: async (): Promise<PendingTransfer[]> => {
       if (!supabase) throw new Error('Supabase is not configured')
-      const { data, error } = await supabase
+      const { data: transfers, error: transfersError } = await supabase
         .from('transfers')
-        .select(
-          `id, confidence, amount, out_txn_id, in_txn_id,
-           out_txn:transactions!transfers_out_txn_id_fkey(date, amount, accounts(name)),
-           in_txn:transactions!transfers_in_txn_id_fkey(date, amount, accounts(name))`,
-        )
+        .select('id, confidence, amount, out_txn_id, in_txn_id')
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
-      if (error) throw error
-      return data as unknown as PendingTransfer[]
+      if (transfersError) throw transfersError
+
+      const txnIds = transfers
+        .flatMap((t) => [t.out_txn_id, t.in_txn_id])
+        .filter((x): x is number => x != null)
+
+      const txnMap = new Map<number, TransferTxnLeg>()
+      if (txnIds.length) {
+        const { data: txns, error: txnsError } = await supabase
+          .from('transactions')
+          .select('id, date, amount, accounts(name)')
+          .in('id', txnIds)
+        if (txnsError) throw txnsError
+        for (const txn of txns as unknown as (TransferTxnLeg & { id: number })[]) {
+          txnMap.set(txn.id, txn)
+        }
+      }
+
+      return transfers.map((t) => ({
+        ...t,
+        out_txn: t.out_txn_id != null ? (txnMap.get(t.out_txn_id) ?? null) : null,
+        in_txn: t.in_txn_id != null ? (txnMap.get(t.in_txn_id) ?? null) : null,
+      }))
     },
   })
 
