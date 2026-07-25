@@ -204,37 +204,6 @@ export function DashboardPage() {
         </p>
       )}
 
-      {(alerts?.uncategorised ||
-        alerts?.pendingTransfers ||
-        (alerts?.daysSinceImport != null && alerts.daysSinceImport >= 7)) && (
-        <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
-          {(alerts.uncategorised ?? 0) > 0 && (
-            <Link
-              to="/ledger"
-              className="shrink-0 rounded-xl border border-hairline bg-surface px-3 py-2 font-medium text-ink"
-            >
-              {alerts.uncategorised} uncategorised
-            </Link>
-          )}
-          {(alerts.pendingTransfers ?? 0) > 0 && (
-            <Link
-              to="/transfers"
-              className="shrink-0 rounded-xl bg-flow px-3 py-2 font-semibold text-white"
-            >
-              {alerts.pendingTransfers} transfers to review
-            </Link>
-          )}
-          {alerts.daysSinceImport != null && alerts.daysSinceImport >= 7 && (
-            <Link
-              to="/import"
-              className="shrink-0 rounded-xl border border-caution/30 bg-surface px-3 py-2 font-medium text-ink"
-            >
-              Last import {alerts.daysSinceImport}d ago
-            </Link>
-          )}
-        </div>
-      )}
-
       {/* Monthly spending — donut + legend */}
       <div className="rounded-lg border border-hairline bg-surface p-4">
         <h2 className="text-base font-semibold text-ink">
@@ -427,6 +396,37 @@ export function DashboardPage() {
           </ul>
         )}
       </div>
+
+      {(alerts?.uncategorised ||
+        alerts?.pendingTransfers ||
+        (alerts?.daysSinceImport != null && alerts.daysSinceImport >= 7)) && (
+        <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
+          {(alerts.uncategorised ?? 0) > 0 && (
+            <Link
+              to="/ledger"
+              className="shrink-0 rounded-xl border border-hairline bg-surface px-3 py-2 font-medium text-ink"
+            >
+              {alerts.uncategorised} uncategorised
+            </Link>
+          )}
+          {(alerts.pendingTransfers ?? 0) > 0 && (
+            <Link
+              to="/transfers"
+              className="shrink-0 rounded-xl bg-flow px-3 py-2 font-semibold text-white"
+            >
+              {alerts.pendingTransfers} transfers to review
+            </Link>
+          )}
+          {alerts.daysSinceImport != null && alerts.daysSinceImport >= 7 && (
+            <Link
+              to="/import"
+              className="shrink-0 rounded-xl border border-caution/30 bg-surface px-3 py-2 font-medium text-ink"
+            >
+              Last import {alerts.daysSinceImport}d ago
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* FAB — above bottom nav */}
       <button

@@ -1,12 +1,26 @@
 import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useCategories } from '@/hooks/useCategories'
+import { supabase } from '@/lib/supabase'
 
 export function MorePage() {
   const { user, signOut } = useAuth()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
+  const { data: pendingTransfers = 0 } = useQuery({
+    queryKey: ['transfers', 'pending', 'count'],
+    queryFn: async (): Promise<number> => {
+      if (!supabase) throw new Error('Supabase is not configured')
+      const { count, error } = await supabase
+        .from('transfers')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+      if (error) throw error
+      return count ?? 0
+    },
+  })
 
   return (
     <section>
@@ -19,6 +33,11 @@ export function MorePage() {
 
       <nav className="mt-8 space-y-2">
         <MoreLink to="/accounts" label="Accounts" meta={`${accounts.length} accounts`} />
+        <MoreLink
+          to="/transfers"
+          label="Transfers"
+          meta={pendingTransfers > 0 ? `${pendingTransfers} pending` : 'Review queue'}
+        />
         <MoreLink to="/import" label="Import CSV" meta="Map columns, commit rows" />
         <MoreLink to="/imports" label="Import history" meta="Undo a bad import" />
         <MoreLink to="/insights" label="Insights" meta="Trends and merchants" />
