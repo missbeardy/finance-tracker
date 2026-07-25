@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from '@/lib/auth'
 import { ensureUserBootstrap } from '@/lib/bootstrap'
 
@@ -10,6 +10,15 @@ export function BootstrapGate({ children }: { children: ReactNode }) {
   const [attempt, setAttempt] = useState(0)
   const [slowHint, setSlowHint] = useState(false)
   const [elapsed, setElapsed] = useState(0)
+
+  // Temporary diagnostic counters — remove once the stuck-loader bug is confirmed fixed.
+  const renderCountRef = useRef(0)
+  renderCountRef.current += 1
+  const [trueMountCount, setTrueMountCount] = useState(0)
+  useEffect(() => {
+    setTrueMountCount((n) => n + 1)
+  }, [])
+  const bootstrapCallCountRef = useRef(0)
 
   useEffect(() => {
     if (ready) return
@@ -40,6 +49,7 @@ export function BootstrapGate({ children }: { children: ReactNode }) {
       if (alive) setSlowHint(true)
     }, 8_000)
 
+    bootstrapCallCountRef.current += 1
     ensureUserBootstrap(userId)
       .then(() => {
         if (alive) setReady(true)
@@ -91,6 +101,9 @@ export function BootstrapGate({ children }: { children: ReactNode }) {
         {/* Temporary diagnostic — remove once the stuck-loader bug is confirmed fixed. */}
         <p className="mt-4 max-w-xs text-center text-[10px] text-ink-muted/60">
           debug: userId={userId ?? 'null'} · elapsed={elapsed}s · attempt={attempt}
+          <br />
+          renders={renderCountRef.current} · trueMounts={trueMountCount} · bootstrapCalls=
+          {bootstrapCallCountRef.current}
         </p>
       </div>
     )
