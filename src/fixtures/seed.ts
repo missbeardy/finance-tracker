@@ -36,10 +36,10 @@ export function buildTransferFixtures(): {
     },
     {
       id: 5,
-      name: 'Mortgage Loan',
-      isOwn: true,
-      type: 'loan',
-      externalMatchPatterns: ['MORTGAGE', 'HOME LOAN'],
+      name: 'External Savings',
+      isOwn: false,
+      type: 'savings',
+      externalMatchPatterns: ['EXTERNAL SAVINGS'],
     },
     {
       id: 6,
@@ -47,6 +47,13 @@ export function buildTransferFixtures(): {
       isOwn: false,
       type: 'transaction',
       externalMatchPatterns: [],
+    },
+    {
+      id: 7,
+      name: 'Mortgage Loan',
+      isOwn: true,
+      type: 'loan',
+      externalMatchPatterns: ['MORTGAGE', 'HOME LOAN'],
     },
   ]
 
@@ -142,17 +149,55 @@ export function buildTransferFixtures(): {
       isOwn: true,
       accountName: 'House Offset',
     },
-    // 4. One-sided to non-imported mortgage via pattern
+    // 4. One-sided to a non-imported external account via pattern
     {
       id: 401,
       accountId: 2,
       date: '2026-06-01',
       amount: -210000,
-      description: 'DIRECT DEBIT MORTGAGE LOAN',
-      merchant: 'DIRECT DEBIT MORTGAGE LOAN',
+      description: 'DIRECT DEBIT EXTERNAL SAVINGS',
+      merchant: 'DIRECT DEBIT EXTERNAL SAVINGS',
       transferId: null,
       isOwn: true,
       accountName: 'Offset 5',
+    },
+    // 4b. Mortgage repayment must stay as spending, not a one-sided transfer,
+    // even though the loan account's match patterns would otherwise catch it
+    {
+      id: 402,
+      accountId: 2,
+      date: '2026-06-16',
+      amount: -145000,
+      description: 'NET TFR TO DD MORTGAGE',
+      merchant: 'NET TFR TO DD MORTGAGE',
+      transferId: null,
+      isOwn: true,
+      accountName: 'Offset 5',
+    },
+    // 4c. A same-day, exact-amount repayment landing on an imported loan
+    // account must not two-sided-match either — it stays as spending on the
+    // paying account, and the loan account leg stays untouched
+    {
+      id: 403,
+      accountId: 2,
+      date: '2026-06-18',
+      amount: -145000,
+      description: 'LOAN REPAYMENT',
+      merchant: 'LOAN REPAYMENT',
+      transferId: null,
+      isOwn: true,
+      accountName: 'Offset 5',
+    },
+    {
+      id: 404,
+      accountId: 7,
+      date: '2026-06-18',
+      amount: 145000,
+      description: 'REPAYMENT RECEIVED',
+      merchant: 'REPAYMENT RECEIVED',
+      transferId: null,
+      isOwn: true,
+      accountName: 'Mortgage Loan',
     },
     // 5. Card purchase + later payment
     {

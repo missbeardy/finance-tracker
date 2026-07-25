@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import Papa from 'papaparse'
 import { useQueryClient } from '@tanstack/react-query'
-import { useAccounts } from '@/hooks/useAccounts'
+import { useAccounts, useCreateAccount } from '@/hooks/useAccounts'
+import { ACCOUNT_TYPES, COLOR_TOKENS, type AccountType } from '@/lib/accounts'
 import {
   detectColumnMapping,
   detectDateFormat,
@@ -61,6 +62,7 @@ export function ImportPage() {
   const { data: accounts = [] } = useAccounts()
   const { data: settings } = useSettings()
   const updateSettings = useUpdateSettings()
+  const createAccount = useCreateAccount()
 
   const [step, setStep] = useState<Step>('drop')
   const [filename, setFilename] = useState('')
@@ -74,6 +76,14 @@ export function ImportPage() {
   const [committing, setCommitting] = useState(false)
   const [resultSummary, setResultSummary] = useState<string | null>(null)
   const [headerHash, setHeaderHash] = useState<string | null>(null)
+  const [creatingLabel, setCreatingLabel] = useState<string | null>(null)
+  const [createDraft, setCreateDraft] = useState<{
+    name: string
+    institution: string
+    type: AccountType
+  }>({ name: '', institution: '', type: 'transaction' })
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
 
   const accountCol = useMemo(
     () => headers.find((h) => mapping[h] === 'account') ?? null,
@@ -90,6 +100,31 @@ export function ImportPage() {
     }
     return [...set].sort((a, b) => a.localeCompare(b))
   }, [rows, accountCol])
+
+  // Not part of the formal column mapping — just used to prefill institution/type
+  // when offering to create an account for an unmatched CSV label (e.g. WeMoney's
+  // "bank" and "accountType" columns).
+  const bankCol = useMemo(
+    () => headers.find((h) => h.toLowerCase().replace(/[^a-z]/g, '') === 'bank') ?? null,
+    [headers],
+  )
+  const accountTypeCol = useMemo(
+    () => headers.find((h) => h.toLowerCase().replace(/[^a-z]/g, '') === 'accounttype') ?? null,
+    [headers],
+  )
+  const labelMeta = useMemo(() => {
+    const map = new Map<string, { bank: string; accountType: string }>()
+    if (!accountCol) return map
+    for (const row of rows) {
+      const label = (row[accountCol] ?? '').trim()
+      if (!label || map.has(label)) continue
+      map.set(label, {
+        bank: bankCol ? (row[bankCol] ?? '').trim() : '',
+        accountType: accountTypeCol ? (row[accountTypeCol] ?? '').trim() : '',
+      })
+    }
+    return map
+  }, [rows, accountCol, bankCol, accountTypeCol])
 
   useEffect(() => {
     if (!multiAccount || !distinctLabels.length || !accounts.length) return
@@ -161,6 +196,57 @@ export function ImportPage() {
         })()
       },
     })
+  }
+
+  function guessAccountType(raw: string): AccountType {
+    const v = raw.toLowerCase()
+    if (v.includes('credit')) return 'credit_card'
+    if (v.includes('loan')) return 'loan'
+    if (v.includes('offset')) return 'offset'
+    if (v.includes('invest')) return 'investment'
+    if (v.includes('saving')) return 'savings'
+    return 'transaction'
+  }
+
+  function openCreateAccount(label: string) {
+    const meta = labelMeta.get(label)
+    setCreateDraft({
+      name: label,
+      institution: meta?.bank ?? '',
+      type: guessAccountType(meta?.accountType ?? ''),
+    })
+    setCreateError(null)
+    setCreatingLabel(label)
+  }
+
+  async function confirmCreateAccount() {
+    if (!creatingLabel) return
+    if (!createDraft.name.trim() || !createDraft.institution.trim()) {
+      setCreateError('Name and institution are required.')
+      return
+    }
+    setCreating(true)
+    setCreateError(null)
+    try {
+      const colorToken =
+        COLOR_TOKENS[distinctLabels.indexOf(creatingLabel) % COLOR_TOKENS.length] ?? 'cat-6'
+      const created = await createAccount.mutateAsync({
+        name: createDraft.name.trim(),
+        institution: createDraft.institution.trim(),
+        type: createDraft.type,
+        is_own: true,
+        is_imported: true,
+        external_match_patterns: [],
+        color_token: colorToken,
+        currency: 'AUD',
+      })
+      setAccountLabelMap((prev) => ({ ...prev, [creatingLabel]: created.id }))
+      setCreatingLabel(null)
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Could not create account')
+    } finally {
+      setCreating(false)
+    }
   }
 
   const normalised = useMemo(() => {
@@ -423,6 +509,84 @@ export function ImportPage() {
                       </option>
                     ))}
                   </select>
+
+                  {accountLabelMap[label] == null && creatingLabel !== label && (
+                    <p className="mt-1 text-xs text-caution">
+                      No matching account for "{label}".{' '}
+                      <button
+                        type="button"
+                        className="font-medium text-flow underline"
+                        onClick={() => openCreateAccount(label)}
+                      >
+                        Create a new account for it?
+                      </button>
+                    </p>
+                  )}
+
+                  {creatingLabel === label && (
+                    <div className="mt-2 space-y-2 rounded-md border border-hairline p-3">
+                      <p className="text-xs font-medium text-ink">
+                        Create account from "{label}"
+                      </p>
+                      <input
+                        className="field"
+                        placeholder="Account name"
+                        value={createDraft.name}
+                        onChange={(e) =>
+                          setCreateDraft({ ...createDraft, name: e.target.value })
+                        }
+                      />
+                      <input
+                        className="field"
+                        placeholder="Institution"
+                        value={createDraft.institution}
+                        onChange={(e) =>
+                          setCreateDraft({ ...createDraft, institution: e.target.value })
+                        }
+                      />
+                      <select
+                        className="field"
+                        value={createDraft.type}
+                        onChange={(e) =>
+                          setCreateDraft({
+                            ...createDraft,
+                            type: e.target.value as AccountType,
+                          })
+                        }
+                      >
+                        {ACCOUNT_TYPES.map((t) => (
+                          <option key={t.value} value={t.value}>
+                            {t.label}
+                          </option>
+                        ))}
+                      </select>
+                      {createError && (
+                        <p className="text-xs text-signal" role="alert">
+                          {createError}
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={creating}
+                          className="rounded-md bg-flow px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+                          onClick={() => void confirmCreateAccount()}
+                        >
+                          {creating ? 'Creating…' : 'Create account'}
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-md border border-hairline px-3 py-1.5 text-xs"
+                          onClick={() => {
+                            setCreatingLabel(null)
+                            setCreateError(null)
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </label>
               ))}
             </div>

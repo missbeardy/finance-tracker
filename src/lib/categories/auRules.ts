@@ -8,6 +8,8 @@ export type SeedRule = {
 }
 
 export const AU_MERCHANT_SEED_RULES: SeedRule[] = [
+  { priority: 5, matchType: 'contains', pattern: 'MORTGAGE', categoryPath: ['Housing', 'Rent/Mortgage'] },
+  { priority: 5, matchType: 'contains', pattern: 'HOME LOAN', categoryPath: ['Housing', 'Rent/Mortgage'] },
   { priority: 10, matchType: 'contains', pattern: 'WOOLWORTHS', categoryPath: ['Food', 'Groceries'] },
   { priority: 10, matchType: 'contains', pattern: 'COLES', categoryPath: ['Food', 'Groceries'] },
   { priority: 10, matchType: 'contains', pattern: 'ALDI', categoryPath: ['Food', 'Groceries'] },

@@ -99,8 +99,8 @@ export const DARREN_ACCOUNT_PRESET: AccountPreset[] = [
     type: 'loan',
     is_own: true,
     is_imported: true,
-    external_match_patterns: ['MORTGAGE', 'HOME LOAN'],
+    external_match_patterns: [],
     color_token: 'cat-8',
-    note: 'Mortgage balance — payments in are transfers, not spending',
+    note: 'Tracks the loan balance only. Repayments are recognised as an expense on the paying account (Housing → Rent/Mortgage), not as a transfer.',
   },
 ]

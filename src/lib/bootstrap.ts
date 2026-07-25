@@ -181,15 +181,28 @@ async function seedParentCategories(userId: string): Promise<Map<string, number>
   return byName
 }
 
+/**
+ * Tops up any AU_MERCHANT_SEED_RULES not yet present for this user, keyed by
+ * match type + pattern. Runs on every login (not just first) so rules added
+ * to the seed set later (e.g. mortgage repayments) reach existing users
+ * without a manual DB fix. Never touches rules a user has edited or disabled.
+ */
 async function seedRulesIfEmpty(userId: string) {
   if (!supabase) return
 
-  const { count, error } = await supabase
+  const { data: existingRules, error } = await supabase
     .from('rules')
-    .select('id', { count: 'exact', head: true })
+    .select('match_type, pattern')
     .eq('user_id', userId)
   if (error) throw new Error(formatSupabaseError('Could not read rules', error))
-  if ((count ?? 0) > 0) return
+
+  const existingKeys = new Set(
+    (existingRules ?? []).map((r) => `${r.match_type}:${r.pattern.toUpperCase()}`),
+  )
+  const missingSeedRules = AU_MERCHANT_SEED_RULES.filter(
+    (rule) => !existingKeys.has(`${rule.matchType}:${rule.pattern.toUpperCase()}`),
+  )
+  if (!missingSeedRules.length) return
 
   const { data: categories, error: catError } = await supabase
     .from('categories')
@@ -210,7 +223,7 @@ async function seedRulesIfEmpty(userId: string) {
     return child?.id ?? parent.id
   }
 
-  const rows = AU_MERCHANT_SEED_RULES.map((rule) => {
+  const rows = missingSeedRules.map((rule) => {
     const categoryId = resolvePath(rule.categoryPath)
     if (categoryId == null) return null
     return {

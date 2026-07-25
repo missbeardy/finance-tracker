@@ -30,7 +30,7 @@ const ALIASES: Record<Exclude<CsvField, 'skip'>, string[]> = {
     'memo',
   ],
   balance: ['balance', 'running balance', 'account balance'],
-  account: ['account', 'account name', 'account nickname'],
+  account: ['account', 'account name', 'account nickname', 'accountname', 'accountnickname'],
   category: ['category', 'categories'],
 }
 
@@ -59,6 +59,20 @@ export function detectColumnMapping(headers: string[]): ColumnMapping {
     }
     mapping[header] = matched
   }
+
+  // Prefer a user-assigned nickname over the raw bank/product account name when
+  // a CSV exposes both (e.g. WeMoney's accountName + accountNickname columns) —
+  // the nickname is what matches the user's own ledger account names, while the
+  // product name is often shared across several of the user's real accounts.
+  const nicknameHeader = headers.find((h) =>
+    ['accountnickname', 'account nickname'].includes(norm(h)),
+  )
+  const nameHeader = headers.find((h) => ['accountname', 'account name'].includes(norm(h)))
+  if (nicknameHeader && nameHeader && mapping[nameHeader] === 'account') {
+    mapping[nameHeader] = 'skip'
+    mapping[nicknameHeader] = 'account'
+  }
+
   return mapping
 }
 

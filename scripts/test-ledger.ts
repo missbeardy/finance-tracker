@@ -61,8 +61,18 @@ const coffee: IncomingTxn = {
   assert(linked.has(303) && linked.has(304), 'case3 pair B')
   assert(
     result.patternOneSided.some((p) => p.outId === 401 && p.accountInId === 5),
-    'case4 mortgage pattern',
+    'case4 one-sided external account pattern',
   )
+  assert(
+    !result.patternOneSided.some((p) => p.outId === 402),
+    'case4b mortgage repayment is not caught by the loan account pattern',
+  )
+  assert(!linked.has(402), 'case4b mortgage repayment stays as spending')
+  assert(
+    !linked.has(403) && !result.patternOneSided.some((p) => p.outId === 403),
+    'case4c mortgage repayment does not two-sided-match an imported loan account',
+  )
+  assert(!linked.has(404), 'case4c loan account leg stays untouched too')
   assert(linked.has(502) && linked.has(503), 'case5 card payment')
   assert(!linked.has(501), 'case5 purchase stays spending')
 }

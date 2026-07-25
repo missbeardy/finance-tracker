@@ -93,8 +93,14 @@ export function matchTransfers(
   const unmatchedOut = txns.filter(
     (t) => t.amount < 0 && t.transferId == null && t.isOwn,
   )
+  // Loan accounts are balance trackers, not transfer partners: a repayment is
+  // recognised as an expense on the paying account, never swallowed as a transfer.
   const unmatchedIn = txns.filter(
-    (t) => t.amount > 0 && t.transferId == null && t.isOwn,
+    (t) =>
+      t.amount > 0 &&
+      t.transferId == null &&
+      t.isOwn &&
+      accountMap.get(t.accountId)?.type !== 'loan',
   )
 
   type Cand = { out: TransferTxn; inn: TransferTxn; score: number }
@@ -154,6 +160,7 @@ export function matchTransfers(
     const desc = out.description.toUpperCase()
     for (const acct of accounts) {
       if (acct.id === out.accountId) continue
+      if (acct.type === 'loan') continue
       const hit = acct.externalMatchPatterns.some((p) =>
         desc.includes(p.toUpperCase()),
       )
