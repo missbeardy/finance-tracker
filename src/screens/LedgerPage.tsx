@@ -4,8 +4,13 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { formatAud } from '@/lib/money'
 import { useTransactions } from '@/hooks/useTransactions'
 import { useAccounts } from '@/hooks/useAccounts'
-import { useCategories } from '@/hooks/useCategories'
+import { useCategories, useCreateCategory, type CategoryRow } from '@/hooks/useCategories'
 import { useUpdateTransactionCategory } from '@/hooks/useUpdateTransactionCategory'
+
+function nextColorToken(categories: CategoryRow[]): string {
+  const topLevelCount = categories.filter((c) => c.parent_id == null).length
+  return `cat-${(topLevelCount % 8) + 1}`
+}
 
 export function LedgerPage() {
   const [params] = useSearchParams()
@@ -14,6 +19,10 @@ export function LedgerPage() {
   const [search, setSearch] = useState(params.get('q') ?? '')
   const [showTransfers, setShowTransfers] = useState(false)
   const [showExcluded, setShowExcluded] = useState(false)
+  const [addCategoryOpen, setAddCategoryOpen] = useState(false)
+  const [addCategoryTargetRowId, setAddCategoryTargetRowId] = useState<number | null>(null)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [newCategoryParentId, setNewCategoryParentId] = useState<number | ''>('')
 
   const filters = useMemo(
     () => ({
@@ -30,6 +39,7 @@ export function LedgerPage() {
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const updateCategory = useUpdateTransactionCategory()
+  const createCategory = useCreateCategory()
 
   const parentRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -43,6 +53,44 @@ export function LedgerPage() {
     const hasChildren = categories.some((x) => x.parent_id === c.id)
     return !hasChildren
   })
+  const parentCategories = categories.filter((c) => c.parent_id == null)
+
+  function openAddCategory(targetRowId: number | null) {
+    setAddCategoryTargetRowId(targetRowId)
+    setNewCategoryName('')
+    setNewCategoryParentId('')
+    setAddCategoryOpen(true)
+  }
+
+  async function handleCreateCategory() {
+    const name = newCategoryName.trim()
+    if (!name) return
+    const parent =
+      newCategoryParentId === ''
+        ? null
+        : (categories.find((c) => c.id === newCategoryParentId) ?? null)
+    const kind = parent ? (parent.kind as 'expense' | 'income') : 'expense'
+    const colorToken = parent ? parent.color_token : nextColorToken(categories)
+
+    const created = await createCategory.mutateAsync({
+      name,
+      kind,
+      parentId: parent?.id ?? null,
+      colorToken,
+    })
+
+    if (addCategoryTargetRowId != null) {
+      const row = rows.find((r) => r.id === addCategoryTargetRowId)
+      await updateCategory.mutateAsync({
+        id: addCategoryTargetRowId,
+        categoryId: created.id,
+        merchant: row?.merchant,
+      })
+    }
+
+    setAddCategoryOpen(false)
+    setAddCategoryTargetRowId(null)
+  }
 
   return (
     <section className="flex h-[calc(100dvh-5.5rem)] flex-col">
@@ -76,6 +124,13 @@ export function LedgerPage() {
             ))}
           </select>
         </div>
+        <button
+          type="button"
+          className="text-xs font-medium text-flow"
+          onClick={() => openAddCategory(null)}
+        >
+          + New category
+        </button>
         <input
           className="field"
           placeholder="Search merchant or description"
@@ -141,6 +196,10 @@ export function LedgerPage() {
                   className="max-w-[7.5rem] truncate rounded border border-hairline bg-paper px-1 py-1 text-[11px]"
                   value={row.category_id ?? ''}
                   onChange={(e) => {
+                    if (e.target.value === 'new') {
+                      openAddCategory(row.id)
+                      return
+                    }
                     const next = Number(e.target.value)
                     if (!next) return
                     const apply = confirm(
@@ -160,6 +219,7 @@ export function LedgerPage() {
                       {c.name}
                     </option>
                   ))}
+                  <option value="new">+ Add category…</option>
                 </select>
                 <p className="ledger-mono w-[5.5rem] shrink-0 text-right text-sm text-ink">
                   {formatAud(row.amount)}
@@ -169,6 +229,65 @@ export function LedgerPage() {
           })}
         </div>
       </div>
+
+      {addCategoryOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-4 sm:items-center"
+          onClick={() => setAddCategoryOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-lg bg-surface p-4 shadow-soft"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="font-display text-base font-semibold text-ink">New category</h2>
+            <input
+              className="field mt-3"
+              placeholder="Category name"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              autoFocus
+            />
+            <select
+              className="field mt-2"
+              value={newCategoryParentId}
+              onChange={(e) =>
+                setNewCategoryParentId(e.target.value ? Number(e.target.value) : '')
+              }
+            >
+              <option value="">No group (top-level)</option>
+              {parentCategories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            {createCategory.isError && (
+              <p className="mt-2 text-xs text-signal" role="alert">
+                {createCategory.error instanceof Error
+                  ? createCategory.error.message
+                  : 'Could not create category.'}
+              </p>
+            )}
+            <div className="mt-3 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-hairline px-3 py-1.5 text-xs"
+                onClick={() => setAddCategoryOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={createCategory.isPending || !newCategoryName.trim()}
+                className="rounded-md bg-flow px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                onClick={() => void handleCreateCategory()}
+              >
+                {createCategory.isPending ? 'Adding…' : 'Add category'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
