@@ -9,6 +9,14 @@ export function BootstrapGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
   const [slowHint, setSlowHint] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    if (ready) return
+    setElapsed(0)
+    const tick = window.setInterval(() => setElapsed((n) => n + 1), 1000)
+    return () => window.clearInterval(tick)
+  }, [ready, userId, attempt])
 
   const retry = useCallback(() => {
     setError(null)
@@ -79,6 +87,10 @@ export function BootstrapGate({ children }: { children: ReactNode }) {
           {slowHint
             ? 'Still working — first login can take a moment…'
             : 'Seeding categories and settings'}
+        </p>
+        {/* Temporary diagnostic — remove once the stuck-loader bug is confirmed fixed. */}
+        <p className="mt-4 max-w-xs text-center text-[10px] text-ink-muted/60">
+          debug: userId={userId ?? 'null'} · elapsed={elapsed}s · attempt={attempt}
         </p>
       </div>
     )
