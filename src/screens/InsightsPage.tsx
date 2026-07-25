@@ -10,7 +10,7 @@ import {
   LineChart,
   Line,
 } from 'recharts'
-import { format, parseISO, getDay } from 'date-fns'
+import { format, parseISO, getDay, subMonths } from 'date-fns'
 import { supabase } from '@/lib/supabase'
 import { formatAud } from '@/lib/money'
 import { Link } from 'react-router-dom'
@@ -22,9 +22,7 @@ export function InsightsPage() {
     queryKey: ['insights'],
     queryFn: async () => {
       if (!supabase) throw new Error('Supabase is not configured')
-      const since = new Date()
-      since.setMonth(since.getMonth() - 12)
-      const sinceStr = since.toISOString().slice(0, 10)
+      const sinceStr = format(subMonths(new Date(), 12), 'yyyy-MM-dd')
 
       const { data: txns, error: txnError } = await supabase
         .from('transactions')

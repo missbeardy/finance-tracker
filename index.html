@@ -13,43 +13,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- Temporary crash net for debugging a stuck-loader report — remove once resolved. -->
-    <script>
-      (function () {
-        var banner
-        function show(text) {
-          if (!banner) {
-            banner = document.createElement('div')
-            banner.style.cssText =
-              'position:fixed;inset:0;z-index:999999;background:#1a0000;color:#ffb4b4;' +
-              'font:12px/1.4 monospace;padding:16px;overflow:auto;white-space:pre-wrap;'
-            document.body.appendChild(banner)
-          }
-          banner.textContent += text + '\n\n'
-        }
-        window.addEventListener(
-          'error',
-          function (e) {
-            var target = e.target
-            if (target && target !== window && (target.src || target.href)) {
-              show('[resource error] ' + (target.src || target.href))
-              return
-            }
-            show('[js error] ' + (e.message || '') + '\n' + (e.error && e.error.stack ? e.error.stack : ''))
-          },
-          true,
-        )
-        window.addEventListener('unhandledrejection', function (e) {
-          var reason = e.reason
-          show(
-            '[unhandled rejection] ' +
-              (reason && reason.message ? reason.message : String(reason)) +
-              '\n' +
-              (reason && reason.stack ? reason.stack : ''),
-          )
-        })
-      })()
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

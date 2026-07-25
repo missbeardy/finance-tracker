@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { addDays, format, parseISO } from 'date-fns'
 import { supabase } from '@/lib/supabase'
 import { previousRange, type DateRange } from '@/lib/period'
 import { COLOR_TOKEN_HEX, type ColorToken } from '@/lib/accounts'
@@ -250,9 +251,7 @@ function buildNetSeries(txns: DashTxn[], range: DateRange) {
   let cursor = range.start
   while (cursor <= range.end) {
     byDay.set(cursor, 0)
-    const d = new Date(cursor + 'T00:00:00')
-    d.setDate(d.getDate() + 1)
-    cursor = d.toISOString().slice(0, 10)
+    cursor = format(addDays(parseISO(cursor), 1), 'yyyy-MM-dd')
   }
   let running = 0
   const points: { date: string; net: number }[] = []

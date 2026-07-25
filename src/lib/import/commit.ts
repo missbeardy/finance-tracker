@@ -1,3 +1,4 @@
+import { addDays, format, parseISO, subDays } from 'date-fns'
 import { supabase } from '@/lib/supabase'
 import { buildDedupeKey, selectRowsToInsert, type IncomingTxn } from '@/lib/ledger/dedupe'
 import { matchCategory, type CategoriseRule } from '@/lib/ledger/categorise'
@@ -59,12 +60,8 @@ async function uncategorisedId(userId: string): Promise<number | null> {
 }
 
 async function applyTransferMatches(userId: string, dateMin: string, dateMax: string) {
-  const start = new Date(dateMin)
-  start.setDate(start.getDate() - 7)
-  const end = new Date(dateMax)
-  end.setDate(end.getDate() + 7)
-  const from = start.toISOString().slice(0, 10)
-  const to = end.toISOString().slice(0, 10)
+  const from = format(subDays(parseISO(dateMin), 7), 'yyyy-MM-dd')
+  const to = format(addDays(parseISO(dateMax), 7), 'yyyy-MM-dd')
 
   const { data: accounts, error: accErr } = await supabase!
     .from('accounts')
