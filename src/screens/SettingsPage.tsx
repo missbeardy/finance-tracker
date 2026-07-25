@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSettings, useUpdateSettings } from '@/hooks/useSettings'
 import { useCategories } from '@/hooks/useCategories'
+import { useAuth } from '@/lib/auth'
 import {
   downloadBackupJson,
   exportLedgerBackup,
@@ -13,6 +14,7 @@ export function SettingsPage() {
   const { data: settings, isLoading } = useSettings()
   const { data: categories = [] } = useCategories()
   const updateSettings = useUpdateSettings()
+  const { changePassword } = useAuth()
 
   const [periodType, setPeriodType] = useState('calendar_month')
   const [payday, setPayday] = useState('')
@@ -22,6 +24,13 @@ export function SettingsPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordBusy, setPasswordBusy] = useState(false)
 
   useEffect(() => {
     if (!settings) return
@@ -104,6 +113,35 @@ export function SettingsPage() {
       setError(err instanceof Error ? err.message : 'Restore failed')
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function handleChangePassword() {
+    setPasswordError(null)
+    setPasswordMessage(null)
+
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirmation do not match.')
+      return
+    }
+
+    setPasswordBusy(true)
+    try {
+      const { error: changeError } = await changePassword(currentPassword, newPassword)
+      if (changeError) {
+        setPasswordError(changeError)
+        return
+      }
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setPasswordMessage('Password changed.')
+    } finally {
+      setPasswordBusy(false)
     }
   }
 
@@ -211,6 +249,62 @@ export function SettingsPage() {
             </li>
           ))}
         </ul>
+      </div>
+
+      <div className="space-y-3 rounded-lg bg-surface p-4">
+        <h2 className="text-sm font-medium text-ink">Account</h2>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-ink-muted">Current password</span>
+          <input
+            type="password"
+            autoComplete="current-password"
+            className="field"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-ink-muted">New password</span>
+          <input
+            type="password"
+            autoComplete="new-password"
+            minLength={6}
+            className="field"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-ink-muted">
+            Confirm new password
+          </span>
+          <input
+            type="password"
+            autoComplete="new-password"
+            minLength={6}
+            className="field"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+        </label>
+        <button
+          type="button"
+          disabled={passwordBusy || !currentPassword || !newPassword || !confirmPassword}
+          className="rounded-md bg-flow px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+          onClick={() => void handleChangePassword()}
+        >
+          {passwordBusy ? 'Changing…' : 'Change password'}
+        </button>
+        {passwordMessage && (
+          <p className="text-sm text-inbound" role="status">
+            {passwordMessage}
+          </p>
+        )}
+        {passwordError && (
+          <p className="text-sm text-signal" role="alert">
+            {passwordError}
+          </p>
+        )}
       </div>
 
       <div className="space-y-3 rounded-lg bg-surface p-4">

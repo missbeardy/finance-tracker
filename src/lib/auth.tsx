@@ -19,6 +19,10 @@ type AuthContextValue = {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signUp: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
+  changePassword: (
+    currentPassword: string,
+    newPassword: string,
+  ) => Promise<{ error: string | null }>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -83,6 +87,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clearQueryCache()
   }, [])
 
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      if (!supabase) {
+        return { error: 'Supabase is not configured. Add your project keys to .env.local.' }
+      }
+      const email = session?.user.email
+      if (!email) {
+        return { error: 'No signed-in account found.' }
+      }
+      // Re-verify the current password before changing it, in case a session was left open.
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email,
+        password: currentPassword,
+      })
+      if (verifyError) {
+        return { error: 'Current password is incorrect.' }
+      }
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      return { error: error?.message ?? null }
+    },
+    [session],
+  )
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -92,8 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      changePassword,
     }),
-    [session, loading, signIn, signUp, signOut],
+    [session, loading, signIn, signUp, signOut, changePassword],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
