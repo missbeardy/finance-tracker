@@ -19,6 +19,8 @@ export function LedgerPage() {
   const [search, setSearch] = useState(params.get('q') ?? '')
   const [showTransfers, setShowTransfers] = useState(false)
   const [showExcluded, setShowExcluded] = useState(false)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [addCategoryOpen, setAddCategoryOpen] = useState(false)
   const [addCategoryTargetRowId, setAddCategoryTargetRowId] = useState<number | null>(null)
   const [newCategoryName, setNewCategoryName] = useState('')
@@ -31,8 +33,10 @@ export function LedgerPage() {
       search,
       showTransfers,
       showExcluded,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
     }),
-    [accountId, categoryId, search, showTransfers, showExcluded],
+    [accountId, categoryId, search, showTransfers, showExcluded, dateFrom, dateTo],
   )
 
   const { data: rows = [], isLoading, error } = useTransactions(filters)
@@ -123,6 +127,28 @@ export function LedgerPage() {
               </option>
             ))}
           </select>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block text-[11px] text-ink-muted">
+            From
+            <input
+              type="date"
+              className="field mt-1"
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={(e) => setDateFrom(e.target.value)}
+            />
+          </label>
+          <label className="block text-[11px] text-ink-muted">
+            To
+            <input
+              type="date"
+              className="field mt-1"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => setDateTo(e.target.value)}
+            />
+          </label>
         </div>
         <button
           type="button"

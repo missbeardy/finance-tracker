@@ -13,6 +13,8 @@ export type TransactionFilters = {
   search?: string
   showTransfers?: boolean
   showExcluded?: boolean
+  dateFrom?: string
+  dateTo?: string
 }
 
 export function useTransactions(filters: TransactionFilters = {}) {
@@ -31,6 +33,8 @@ export function useTransactions(filters: TransactionFilters = {}) {
       if (filters.categoryId) q = q.eq('category_id', filters.categoryId)
       if (!filters.showTransfers) q = q.is('transfer_id', null)
       if (!filters.showExcluded) q = q.neq('status', 'excluded')
+      if (filters.dateFrom) q = q.gte('date', filters.dateFrom)
+      if (filters.dateTo) q = q.lte('date', filters.dateTo)
       if (filters.search?.trim()) {
         const term = filters.search.trim().replace(/[%_,]/g, '')
         q = q.or(`merchant.ilike.%${term}%,description.ilike.%${term}%`)
