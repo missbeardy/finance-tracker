@@ -1,0 +1,143 @@
+---
+description: Mobile and PWA UX rules. Layout, touch, safe areas, sheets, gestures, and the iOS/Android bugs that break vibe-coded PWAs.
+globs: ["src/**/*.tsx", "src/**/*.css", "index.html"]
+alwaysApply: false
+---
+
+# Mobile UX
+
+Phone is the primary device. Build the 380px view first. Desktop is the adaptation, not the baseline.
+
+---
+
+## The bugs that break every hand-built PWA
+
+Fix these once, globally, before building screens. Each one is invisible in a desktop browser and obvious the moment you open the app on a phone.
+
+```css
+html { -webkit-text-size-adjust: 100%; }
+
+/* 1. 100vh is wrong on mobile. Browser chrome is not accounted for */
+.app-shell { min-height: 100dvh; }
+
+/* 2. Bottom nav sits under the iOS home indicator without this */
+.bottom-nav { padding-bottom: max(var(--s-2), env(safe-area-inset-bottom)); }
+.app-header { padding-top: max(var(--s-3), env(safe-area-inset-top)); }
+
+/* 3. iOS zooms the whole page when focusing an input under 16px */
+input, select, textarea { font-size: 16px; }
+
+/* 4. Grey flash on every tap */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* 5. Pull-to-refresh fires while scrolling a sheet */
+body { overscroll-behavior-y: contain; }
+
+/* 6. Momentum scroll trapped inside modals */
+.sheet-body { -webkit-overflow-scrolling: touch; }
+
+/* 7. Text selection on tap-and-hold of buttons and rows */
+button, .ledger-row { user-select: none; }
+```
+
+In `index.html`:
+```html
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#EEF1F4"
+      media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101317"
+      media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+```
+
+`viewport-fit=cover` is required or `env(safe-area-inset-*)` always returns 0.
+
+---
+
+## Layout
+
+- **Bottom tab bar, 5 items maximum:** Dashboard, Ledger, Transfers, Budget, More. Fixed, 56px plus safe area, `--surface` with a top hairline. Icon plus `--t-micro` label. Active state is the icon filling in and the label going to `--ink`, not a coloured pill.
+- **Thumb zone:** primary actions live in the bottom third of the screen. Destructive and rarely used actions live top-right. Never put the main action in a top-right corner on mobile.
+- **Full-bleed lists:** the ledger runs edge to edge with internal padding. Do not put a 16px-margined card around a scrolling list on a 380px screen. It wastes 8% of the width for decoration.
+- **One column, always.** No side-by-side layouts below 768px. No horizontal scrolling tables, ever. If data does not fit, restructure it into rows.
+- **Sticky context:** the ledger's date header sticks. The dashboard's period selector sticks. Nothing else sticks.
+
+---
+
+## Touch and gesture
+
+- Minimum target 44x44px, including invisible padding around small icons.
+- Minimum 8px between adjacent targets.
+- Everything reachable by tap. No hover-only affordances, no right-click menus, no tooltips as the sole source of information.
+- **Swipe actions on ledger rows:** left reveals Recategorise, right reveals Mark as transfer. Threshold 40% of row width, with haptic-style visual snap. Always also available in the row detail view, because swipe is undiscoverable on its own.
+- **Long press** on a ledger row enters multi-select for bulk actions.
+- **Pull to refresh** on Dashboard and Ledger triggers a sync. This is the one gesture users will try unprompted.
+- **The transfer review queue is the highest-volume interaction in this app.** It gets: full-width cards, swipe right to confirm, swipe left to reject, undo toast for 5 seconds after each, and a visible counter. The user will clear 50+ of these after the first bulk import. If it takes more than one gesture per item, the feature has failed.
+
+---
+
+## Sheets, not modals
+
+Every overlay on mobile is a bottom sheet, not a centred dialog.
+
+- Drag handle at the top, drag-to-dismiss, backdrop tap to dismiss
+- Snap points where useful: half-height for filters, full for detail
+- Sheet content scrolls; the sheet itself does not
+- Confirm actions pinned to the bottom of the sheet, above the safe area
+- Use the same component for: transaction detail, filters, category picker, account picker, date range
+
+Use `<dialog>` with `showModal()` for focus trapping, styled as a sheet. Do not hand-roll focus management.
+
+---
+
+## Forms and input
+
+- The category picker is a searchable sheet, never a native `<select>` with 40 options.
+- Amount inputs use `inputmode="decimal"`, never `type="number"` (spinners, scroll-wheel changes, and locale bugs).
+- Date inputs use the native picker on mobile.
+- The CSV import mapping screen is the hardest thing to fit on a phone. Render it as a vertical stack of field cards, one per mapping, each showing the target field name, a dropdown of source columns, and a live preview value from row 1. Not a table.
+- Validate on blur, never on keystroke. Error text sits beneath the field in `--signal`.
+
+---
+
+## Feedback
+
+- Every write action gets an optimistic update plus a toast. Toast sits above the bottom nav, not over it.
+- Destructive or bulk actions get an **Undo** toast for 5 seconds rather than a confirmation dialog. Fewer taps and safer.
+- Only genuinely irreversible actions (delete account, wipe data) get a typed-confirmation dialog.
+- Offline: a persistent thin bar under the header, `--caution`, reading "Offline. Showing data from 2h ago." Import buttons disable with the reason shown inline, not a silent failure.
+- Never a full-screen blocking spinner. Skeletons that match the final layout.
+
+---
+
+## Performance on a phone
+
+- Virtualise the ledger from the first commit (`@tanstack/react-virtual`). Multi-year, multi-account history is tens of thousands of rows and an unvirtualised list will jank on a mid-range Android.
+- Lazy-load the Sankey and all chart code. Recharts plus d3-sankey is a large chunk and the Dashboard should paint before it arrives.
+- Target: interactive in under 2s on a throttled 4G Moto G-class device. Test with Lighthouse mobile, not desktop.
+- Images: none. This app has no photography. Any decorative image is a mistake.
+
+---
+
+## Accessibility floor
+
+Not optional, and most of it is free if done from the start.
+
+- Visible focus ring on every interactive element: `outline: 2px solid var(--flow); outline-offset: 2px`
+- Category colour is never the only signal. Always paired with a text label
+- Contrast: 4.5:1 for body, 3:1 for large figures. Check `--ink-faint` on `--surface-2` specifically, it is the pair most likely to fail
+- `aria-live="polite"` on the toast region and the sync status
+- Respect `prefers-reduced-motion`
+- All amounts get an `aria-label` with the full spoken value, since `−42.50` is read badly by screen readers
+
+---
+
+## Verify before calling a screen done
+
+Do not trust the desktop preview. Run this loop:
+
+1. Open Chrome DevTools device mode at 380x800, iPhone SE profile
+2. Screenshot it
+3. Look at the screenshot and answer: what is the first thing the eye lands on? Is that the right thing?
+4. Test on a real phone over local network before considering the phase complete

@@ -1,0 +1,21 @@
+---
+description: Core design non-negotiables for this project. Applies to all work.
+alwaysApply: true
+---
+
+# Design rules
+
+This app is a financial ledger. Numbers are the content; everything else is scaffolding.
+
+- Never invent colours, sizes, or spacing. Use only the tokens in `src/styles/tokens.css`. If a value you need does not exist, stop and ask.
+- Type sizes are limited to: 12, 14, 16, 20, 28, 44, 64. Nothing between.
+- Spacing uses only: 4, 8, 12, 16, 24, 32, 48. Nothing between.
+- Every currency figure uses `font-variant-numeric: tabular-nums` and is right-aligned.
+- One separation method per surface: a hairline border **or** a shadow, never both.
+- Colour encodes category or state only. Never decorative. No gradients on charts or cards.
+- Minimum touch target 44px. Minimum input font-size 16px.
+- Phone is the primary target. Design the 380px view first, then widen.
+
+Before writing any component, read `.cursor/rules/020-visual-system.mdc` and `.cursor/rules/021-mobile-ux.mdc`.
+
+Do not add UI that is not in the spec. Ask first.

@@ -1,0 +1,3 @@
+-- Seed data is applied after migrations on `supabase db reset`.
+-- Category seeds and fixtures land in Phase 1 / Phase 4.
+-- Keep empty for Phase 0.5 so RLS verification can insert its own rows.
