@@ -6,6 +6,7 @@ import { useTransactions } from '@/hooks/useTransactions'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useCategories, useCreateCategory, type CategoryRow } from '@/hooks/useCategories'
 import { useUpdateTransactionCategory } from '@/hooks/useUpdateTransactionCategory'
+import { useMarkAsTransfer } from '@/hooks/useMarkAsTransfer'
 
 function nextColorToken(categories: CategoryRow[]): string {
   const topLevelCount = categories.filter((c) => c.parent_id == null).length
@@ -25,6 +26,7 @@ export function LedgerPage() {
   const [addCategoryTargetRowId, setAddCategoryTargetRowId] = useState<number | null>(null)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [newCategoryParentId, setNewCategoryParentId] = useState<number | ''>('')
+  const [detailRowId, setDetailRowId] = useState<number | null>(null)
 
   const filters = useMemo(
     () => ({
@@ -44,6 +46,7 @@ export function LedgerPage() {
   const { data: categories = [] } = useCategories()
   const updateCategory = useUpdateTransactionCategory()
   const createCategory = useCreateCategory()
+  const markAsTransfer = useMarkAsTransfer()
 
   const parentRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -58,6 +61,10 @@ export function LedgerPage() {
     return !hasChildren
   })
   const parentCategories = categories.filter((c) => c.parent_id == null)
+  const internalTransferCategory = categories.find(
+    (c) => c.kind === 'transfer' && c.name === 'Internal Transfer',
+  )
+  const detailRow = rows.find((r) => r.id === detailRowId) ?? null
 
   function openAddCategory(targetRowId: number | null) {
     setAddCategoryTargetRowId(targetRowId)
@@ -209,21 +216,32 @@ export function LedgerPage() {
                 className="absolute left-0 top-0 flex w-full items-center gap-2 border-b border-hairline px-3"
                 style={{ height: item.size, transform: `translateY(${item.start}px)` }}
               >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-ink" title={row.description}>
-                    {row.merchant}
-                  </p>
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 text-left"
+                  onClick={() => setDetailRowId(row.id)}
+                >
+                  <p className="truncate text-sm font-medium text-ink">{row.merchant}</p>
                   <p className="truncate text-[11px] text-ink-muted">
                     {row.date} · {row.accounts?.name ?? 'Account'}
                     {row.transfer_id ? ' · transfer' : ''}
                   </p>
-                </div>
+                </button>
                 <select
                   className="max-w-[7.5rem] truncate rounded border border-hairline bg-paper px-1 py-1 text-[11px]"
                   value={row.category_id ?? ''}
                   onChange={(e) => {
                     if (e.target.value === 'new') {
                       openAddCategory(row.id)
+                      return
+                    }
+                    if (e.target.value === 'transfer') {
+                      void markAsTransfer.mutateAsync({
+                        transactionId: row.id,
+                        accountId: row.account_id,
+                        amount: row.amount,
+                        categoryId: internalTransferCategory?.id ?? null,
+                      })
                       return
                     }
                     const next = Number(e.target.value)
@@ -246,6 +264,7 @@ export function LedgerPage() {
                     </option>
                   ))}
                   <option value="new">+ Add category…</option>
+                  <option value="transfer">↔ Mark as transfer</option>
                 </select>
                 <p className="ledger-mono w-[5.5rem] shrink-0 text-right text-sm text-ink">
                   {formatAud(row.amount)}
@@ -309,6 +328,100 @@ export function LedgerPage() {
                 onClick={() => void handleCreateCategory()}
               >
                 {createCategory.isPending ? 'Adding…' : 'Add category'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {detailRow && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-4 sm:items-center"
+          onClick={() => setDetailRowId(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-lg bg-surface p-4 shadow-soft"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="font-display break-words text-base font-semibold text-ink">
+                {detailRow.merchant}
+              </h2>
+              <button
+                type="button"
+                className="shrink-0 text-ink-muted"
+                aria-label="Close"
+                onClick={() => setDetailRowId(null)}
+              >
+                ✕
+              </button>
+            </div>
+            {detailRow.description && detailRow.description !== detailRow.merchant && (
+              <p className="mt-1 break-words text-sm text-ink-muted">{detailRow.description}</p>
+            )}
+
+            <dl className="mt-4 space-y-2 text-sm">
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-ink-muted">Amount</dt>
+                <dd className="ledger-mono text-ink">{formatAud(detailRow.amount)}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-ink-muted">Date</dt>
+                <dd className="text-ink">{detailRow.date}</dd>
+              </div>
+              {detailRow.posted_date && detailRow.posted_date !== detailRow.date && (
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt className="text-ink-muted">Posted</dt>
+                  <dd className="text-ink">{detailRow.posted_date}</dd>
+                </div>
+              )}
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-ink-muted">Account</dt>
+                <dd className="text-ink">{detailRow.accounts?.name ?? '—'}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-ink-muted">Category</dt>
+                <dd className="text-ink">{detailRow.categories?.name ?? 'Uncategorised'}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-ink-muted">Status</dt>
+                <dd className="text-ink">
+                  {detailRow.transfer_id ? 'Transfer' : detailRow.status}
+                </dd>
+              </div>
+              {detailRow.notes && (
+                <div>
+                  <dt className="text-ink-muted">Notes</dt>
+                  <dd className="mt-1 break-words text-ink">{detailRow.notes}</dd>
+                </div>
+              )}
+            </dl>
+
+            <div className="mt-4 flex justify-end gap-2">
+              {detailRow.transfer_id == null && (
+                <button
+                  type="button"
+                  disabled={markAsTransfer.isPending}
+                  className="rounded-md border border-hairline px-3 py-1.5 text-xs disabled:opacity-50"
+                  onClick={() => {
+                    void markAsTransfer.mutateAsync({
+                      transactionId: detailRow.id,
+                      accountId: detailRow.account_id,
+                      amount: detailRow.amount,
+                      categoryId: internalTransferCategory?.id ?? null,
+                    })
+                    setDetailRowId(null)
+                  }}
+                >
+                  ↔ Mark as transfer
+                </button>
+              )}
+              <button
+                type="button"
+                className="rounded-md bg-flow px-3 py-1.5 text-xs font-medium text-white"
+                onClick={() => setDetailRowId(null)}
+              >
+                Close
               </button>
             </div>
           </div>
