@@ -38,6 +38,7 @@ export function MorePage() {
           label="Transfers"
           meta={pendingTransfers > 0 ? `${pendingTransfers} pending` : 'Review queue'}
         />
+        <MoreLink to="/commitments" label="Commitments" meta="Recurring bills & subs" />
         <MoreLink to="/import" label="Import CSV" meta="Map columns, commit rows" />
         <MoreLink to="/imports" label="Import history" meta="Undo a bad import" />
         <MoreLink

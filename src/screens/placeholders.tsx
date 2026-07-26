@@ -25,15 +25,6 @@ export function TransfersPage() {
   )
 }
 
-export function BudgetPage() {
-  return (
-    <PlaceholderScreen
-      title="Budget"
-      body="Commitments and the discretionary pool arrive in Phase 6."
-    />
-  )
-}
-
 function PlaceholderScreen({ title, body }: { title: string; body: string }) {
   return (
     <section>
