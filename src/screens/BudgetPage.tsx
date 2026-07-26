@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format, parseISO, startOfMonth, subMonths } from 'date-fns'
-import { formatAud, parseDollarsToCents } from '@/lib/money'
+import { formatAud } from '@/lib/money'
 import { rangeForPeriod } from '@/lib/period'
-import { discretionaryPool, median, monthlyNormalise, paceDaysDelta } from '@/lib/budget/calc'
+import { discretionaryPool, median, monthlyNormalise } from '@/lib/budget/calc'
 import { useSettings } from '@/hooks/useSettings'
 import { useCategories, type CategoryRow } from '@/hooks/useCategories'
 import { useAccounts } from '@/hooks/useAccounts'
@@ -11,6 +11,8 @@ import { useTransactions } from '@/hooks/useTransactions'
 import { useCommitments } from '@/hooks/useCommitments'
 import { useBudgetAllocations, useSetBudgetAllocation } from '@/hooks/useBudgetAllocations'
 import { COLOR_TOKEN_HEX, type ColorToken } from '@/lib/accounts'
+import { MACRO_GROUPS, macroGroupForParentName, type MacroGroupKey } from '@/lib/budget/macroGroups'
+import { CategoryGroupCard, type MicroCategoryLine } from '@/components/CategoryGroupCard'
 
 type PeriodChoice = 'this_month' | 'pay_cycle'
 
@@ -141,6 +143,9 @@ export function BudgetPage() {
   )
   const overAllocated = poolCents > 0 && totalAllocated > poolCents
   const remainingCents = poolCents - totalAllocated
+  const structuralDeficit = poolCents < 0
+  const safeToSpendCents = structuralDeficit ? poolCents : remainingCents
+  const [showBreakdown, setShowBreakdown] = useState(false)
 
   const groupedAllocatable = useMemo(() => {
     const groups = new Map<number, { parent: CategoryRow; children: CategoryRow[] }>()
@@ -154,6 +159,27 @@ export function BudgetPage() {
     }
     return [...groups.values()].sort((a, b) => a.parent.name.localeCompare(b.parent.name))
   }, [allocatable, parentsById])
+
+  const macroBuckets = useMemo(() => {
+    const buckets = new Map<MacroGroupKey, MicroCategoryLine[]>()
+    for (const group of groupedAllocatable) {
+      const macroKey = macroGroupForParentName(group.parent.name)
+      const lines = buckets.get(macroKey) ?? []
+      for (const cat of group.children) {
+        lines.push({
+          id: cat.id,
+          name: cat.name,
+          color: catColor(group.parent.color_token),
+          allocatedCents: allocCents[cat.id] ?? 0,
+          spentCents: spentByCategory.get(cat.id) ?? 0,
+        })
+      }
+      buckets.set(macroKey, lines)
+    }
+    return (Object.keys(MACRO_GROUPS) as MacroGroupKey[])
+      .map((key) => ({ key, meta: MACRO_GROUPS[key], lines: buckets.get(key) ?? [] }))
+      .filter((bucket) => bucket.lines.length > 0)
+  }, [groupedAllocatable, allocCents, spentByCategory])
 
   return (
     <section className="space-y-6 pb-4">
@@ -185,23 +211,53 @@ export function BudgetPage() {
         </p>
       )}
 
-      {/* Sustainable budget calculation, §7.2 */}
+      {/* Sustainable budget calculation, §7.2 — Safe to Spend leads, breakdown is opt-in */}
       <div className="rounded-lg border border-hairline bg-surface p-4">
-        <p className="text-xs uppercase tracking-wide text-ink-muted">Discretionary pool</p>
-        <p
-          className={[
-            'money mt-2 text-[44px] leading-none',
-            poolCents < 0 ? 'text-signal' : 'text-ink',
-          ].join(' ')}
+        {structuralDeficit ? (
+          <>
+            <p className="text-xs font-semibold uppercase tracking-wide text-signal">Budget shortfall</p>
+            <p className="money mt-2 text-[36px] leading-none text-signal">{formatAud(poolCents)}</p>
+            <p className="mt-2 text-sm text-ink-muted">
+              Commitments, debt minimums and your savings target add up to more than your verified
+              income this period. Nothing is safe to allocate until income, commitments or the
+              savings target change.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-xs uppercase tracking-wide text-ink-muted">Safe to spend</p>
+            <p
+              className={[
+                'money mt-2 text-[44px] leading-none',
+                remainingCents < 0 ? 'text-caution' : 'text-ink',
+              ].join(' ')}
+            >
+              {formatAud(safeToSpendCents)}
+            </p>
+            <p className="mt-1 text-xs text-ink-muted">
+              {remainingCents < 0
+                ? `${formatAud(Math.abs(remainingCents))} more allocated than your pool — trim a category below.`
+                : `${formatAud(poolCents)} pool · ${formatAud(totalAllocated)} allocated across categories`}
+            </p>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowBreakdown((v) => !v)}
+          className="mt-3 text-xs font-semibold text-flow"
         >
-          {formatAud(poolCents)}
-        </p>
-        <dl className="mt-4 space-y-2 border-t border-hairline pt-4 text-sm">
-          <BudgetLine label="Verified income" value={verifiedIncomeCents} positive />
-          <BudgetLine label="Committed outflow" value={-committedMonthlyCents} />
-          <BudgetLine label="Debt minimums" value={-debtMinimumsMonthlyCents} />
-          <BudgetLine label="Savings target" value={-savingsTargetCents} />
-        </dl>
+          {showBreakdown ? 'Hide breakdown ↑' : 'Show breakdown ↓'}
+        </button>
+        {showBreakdown && (
+          <dl className="mt-3 space-y-2 border-t border-hairline pt-3 text-sm">
+            <BudgetLine label="Verified income" value={verifiedIncomeCents} positive />
+            <BudgetLine label="Committed outflow" value={-committedMonthlyCents} />
+            <BudgetLine label="Debt minimums" value={-debtMinimumsMonthlyCents} />
+            <BudgetLine label="Savings target" value={-savingsTargetCents} />
+            <BudgetLine label="Discretionary pool" value={poolCents} positive={poolCents >= 0} />
+            <BudgetLine label="Allocated to categories" value={-totalAllocated} />
+          </dl>
+        )}
       </div>
 
       <Link
@@ -237,44 +293,30 @@ export function BudgetPage() {
 
         {!isHydrated ? (
           <p className="text-sm text-ink-muted">Loading allocations…</p>
-        ) : groupedAllocatable.length === 0 ? (
+        ) : macroBuckets.length === 0 ? (
           <p className="text-sm text-ink-muted">No expense categories to allocate yet.</p>
         ) : (
-          <div className="space-y-5">
-            {groupedAllocatable.map((group) => (
-              <div key={group.parent.id}>
-                <div className="mb-2 flex items-center gap-2">
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: catColor(group.parent.color_token) }}
-                    aria-hidden
-                  />
-                  <p className="text-sm font-semibold text-ink">{group.parent.name}</p>
-                </div>
-                <ul className="space-y-2">
-                  {group.children.map((cat) => (
-                    <AllocationRow
-                      key={cat.id}
-                      category={cat}
-                      color={catColor(group.parent.color_token)}
-                      initialCents={allocCents[cat.id] ?? 0}
-                      spentCents={spentByCategory.get(cat.id) ?? 0}
-                      periodStart={range.start}
-                      periodEnd={range.end}
-                      today={today}
-                      onChange={(cents) => setAllocCents((prev) => ({ ...prev, [cat.id]: cents }))}
-                      onSave={(cents) =>
-                        setAllocation.mutate({
-                          categoryId: cat.id,
-                          periodStart: range.start,
-                          periodType,
-                          amountCents: cents,
-                        })
-                      }
-                    />
-                  ))}
-                </ul>
-              </div>
+          <div className="space-y-3">
+            {macroBuckets.map((bucket) => (
+              <CategoryGroupCard
+                key={bucket.key}
+                label={bucket.meta.label}
+                blurb={bucket.meta.blurb}
+                color={catColor(bucket.meta.colorToken)}
+                lines={bucket.lines}
+                periodStart={range.start}
+                periodEnd={range.end}
+                today={today}
+                onChangeLine={(id, cents) => setAllocCents((prev) => ({ ...prev, [id]: cents }))}
+                onSaveLine={(id, cents) =>
+                  setAllocation.mutate({
+                    categoryId: id,
+                    periodStart: range.start,
+                    periodType,
+                    amountCents: cents,
+                  })
+                }
+              />
             ))}
           </div>
         )}
@@ -315,82 +357,5 @@ function PeriodButton({
     >
       {children}
     </button>
-  )
-}
-
-function AllocationRow({
-  category,
-  color,
-  initialCents,
-  spentCents,
-  periodStart,
-  periodEnd,
-  today,
-  onChange,
-  onSave,
-}: {
-  category: CategoryRow
-  color: string
-  initialCents: number
-  spentCents: number
-  periodStart: string
-  periodEnd: string
-  today: string
-  onChange: (cents: number) => void
-  onSave: (cents: number) => void
-}) {
-  const [text, setText] = useState((initialCents / 100).toFixed(2))
-  const [cents, setCents] = useState(initialCents)
-
-  const pct = cents > 0 ? Math.min(100, Math.round((spentCents / cents) * 100)) : spentCents > 0 ? 100 : 0
-  const over = cents > 0 && spentCents > cents
-  const pace = paceDaysDelta({ allocationCents: cents, spentCents, periodStart, periodEnd, today })
-
-  return (
-    <li className="rounded-lg border border-hairline bg-surface p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
-          <span className="truncate text-sm text-ink">{category.name}</span>
-        </div>
-        <label className="flex shrink-0 items-center gap-1 text-sm">
-          <span className="text-ink-muted">$</span>
-          <input
-            className="field ledger-mono w-24 text-right"
-            inputMode="decimal"
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value)
-              const parsed = parseDollarsToCents(e.target.value)
-              if (parsed != null) {
-                setCents(parsed)
-                onChange(parsed)
-              }
-            }}
-            onBlur={() => {
-              const parsed = parseDollarsToCents(text) ?? 0
-              setCents(parsed)
-              setText((parsed / 100).toFixed(2))
-              onChange(parsed)
-              onSave(parsed)
-            }}
-          />
-        </label>
-      </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-paper-deep">
-        <div
-          className="h-full rounded-full transition-[width] duration-300"
-          style={{ width: `${Math.max(pct > 0 ? 4 : 0, pct)}%`, background: over ? 'var(--signal)' : color }}
-        />
-      </div>
-      <div className="mt-1 flex items-center justify-between text-[11px] text-ink-muted">
-        <span>{formatAud(spentCents)} spent</span>
-        {pace != null && cents > 0 && (
-          <span className={pace < 0 ? 'font-medium text-signal' : ''}>
-            {pace === 0 ? 'On pace' : pace > 0 ? `${pace}d ahead of pace` : `${Math.abs(pace)}d behind pace`}
-          </span>
-        )}
-      </div>
-    </li>
   )
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSettings, useUpdateSettings } from '@/hooks/useSettings'
 import { useCategories } from '@/hooks/useCategories'
+import { CategoryManager } from '@/components/CategoryManager'
 import { useAuth } from '@/lib/auth'
 import {
   downloadBackupJson,
@@ -240,15 +241,12 @@ export function SettingsPage() {
       <div className="rounded-lg bg-surface p-4">
         <h2 className="text-sm font-medium text-ink">Categories</h2>
         <p className="mt-1 text-xs text-ink-muted">
-          Seeded on first sign-in. {parentCategories.length} top-level groups.
+          {parentCategories.length} top-level groups. Expand a group to delete categories you don't
+          use, or merge one into another to keep its history.
         </p>
-        <ul className="mt-3 columns-2 gap-x-4 text-xs text-ink-muted">
-          {parentCategories.map((c) => (
-            <li key={c.id} className="mb-1">
-              {c.name}
-            </li>
-          ))}
-        </ul>
+        <div className="mt-3">
+          <CategoryManager />
+        </div>
       </div>
 
       <div className="space-y-3 rounded-lg bg-surface p-4">
