@@ -40,7 +40,6 @@ export function MorePage() {
         />
         <MoreLink to="/import" label="Import CSV" meta="Map columns, commit rows" />
         <MoreLink to="/imports" label="Import history" meta="Undo a bad import" />
-        <MoreLink to="/insights" label="Insights" meta="Trends and merchants" />
         <MoreLink
           to="/settings"
           label="Settings & backup"

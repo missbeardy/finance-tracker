@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 const tabs = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/ledger', label: 'Ledger' },
+  { to: '/insights', label: 'Insights' },
   { to: '/budget', label: 'Budget' },
   { to: '/more', label: 'More' },
 ] as const
@@ -20,7 +21,7 @@ export function AppShell() {
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
       >
         <div className="mx-auto max-w-lg rounded-[22px] border border-hairline/80 bg-surface/85 p-1.5 shadow-[var(--glow-flow)] backdrop-blur-xl">
-          <ul className="grid grid-cols-4 gap-0.5">
+          <ul className="grid grid-cols-5 gap-0.5">
             {tabs.map((tab) => (
               <li key={tab.to}>
                 <NavLink
