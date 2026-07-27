@@ -5,7 +5,8 @@ import { formatAud } from '@/lib/money'
 import { rangeForPeriod } from '@/lib/period'
 import { discretionaryPool, median, monthlyNormalise } from '@/lib/budget/calc'
 import { useSettings } from '@/hooks/useSettings'
-import { useCategories, type CategoryRow } from '@/hooks/useCategories'
+import { useCategories, useDeleteCategory, type CategoryRow } from '@/hooks/useCategories'
+import { useCategoryUsage } from '@/hooks/useCategoryUsage'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useTransactions } from '@/hooks/useTransactions'
 import { useCommitments } from '@/hooks/useCommitments'
@@ -38,6 +39,18 @@ export function BudgetPage() {
 
   const { data: savedAllocations = [] } = useBudgetAllocations(range.start, periodType)
   const setAllocation = useSetBudgetAllocation()
+  const { data: usage } = useCategoryUsage()
+  const deleteCategory = useDeleteCategory()
+
+  function handleDeleteCategory(id: number, name: string) {
+    const txnCount = usage?.get(id)?.transactionCount ?? 0
+    const message =
+      txnCount > 0
+        ? `Delete "${name}"? It has ${txnCount} transaction${txnCount === 1 ? '' : 's'} on file — they'll become uncategorised rather than moved. Use Settings → Categories to merge into another category instead if you want to keep that spending grouped. This can't be undone.`
+        : `Delete "${name}"? This can't be undone.`
+    if (!window.confirm(message)) return
+    deleteCategory.mutate(id)
+  }
 
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
   const accountTypeById = useMemo(() => new Map(accounts.map((a) => [a.id, a.type])), [accounts])
@@ -141,7 +154,7 @@ export function BudgetPage() {
     () => Object.values(allocCents).reduce((s, v) => s + v, 0),
     [allocCents],
   )
-  const overAllocated = poolCents > 0 && totalAllocated > poolCents
+  const overAllocated = totalAllocated > poolCents
   const remainingCents = poolCents - totalAllocated
   const structuralDeficit = poolCents < 0
   const safeToSpendCents = structuralDeficit ? poolCents : remainingCents
@@ -316,6 +329,7 @@ export function BudgetPage() {
                     amountCents: cents,
                   })
                 }
+                onDeleteLine={(line) => handleDeleteCategory(line.id, line.name)}
               />
             ))}
           </div>
