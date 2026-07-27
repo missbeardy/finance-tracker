@@ -50,7 +50,7 @@ export function CategoryManager() {
   }, [categories])
 
   function usageFor(id: number): CategoryUsage {
-    return usage?.get(id) ?? EMPTY_USAGE
+    return usage?.[String(id)] ?? EMPTY_USAGE
   }
 
   function isUnused(id: number): boolean {

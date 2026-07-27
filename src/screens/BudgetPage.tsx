@@ -43,7 +43,7 @@ export function BudgetPage() {
   const deleteCategory = useDeleteCategory()
 
   function handleDeleteCategory(id: number, name: string) {
-    const txnCount = usage?.get(id)?.transactionCount ?? 0
+    const txnCount = usage?.[String(id)]?.transactionCount ?? 0
     const message =
       txnCount > 0
         ? `Delete "${name}"? It has ${txnCount} transaction${txnCount === 1 ? '' : 's'} on file — they'll become uncategorised rather than moved. Use Settings → Categories to merge into another category instead if you want to keep that spending grouped. This can't be undone.`

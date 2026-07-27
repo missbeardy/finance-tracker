@@ -14,6 +14,8 @@ export type AccountBalance = {
   source: 'statement' | 'computed' | 'opening' | 'unknown'
 }
 
+type BalanceStats = { statement: number | null; sum: number }
+
 const LIABILITY_TYPES = new Set<AccountType>(['loan', 'credit_card'])
 
 export function isLiabilityType(type: string): boolean {
@@ -26,6 +28,8 @@ export function isLiabilityType(type: string): boolean {
  * 2. Else opening_balance + sum(amounts)
  * 3. Else opening_balance alone
  * 4. Else unknown
+ *
+ * Returns a plain object (not Map) so TanStack Query persistence survives remounts.
  */
 export function useAccountBalances() {
   const { data: accounts = [], ...accountsQuery } = useAccounts()
@@ -33,9 +37,7 @@ export function useAccountBalances() {
   const balancesQuery = useQuery({
     queryKey: ['account-balances'],
     enabled: accounts.length > 0,
-    queryFn: async (): Promise<
-      Map<number, { statement: number | null; sum: number }>
-    > => {
+    queryFn: async (): Promise<Record<string, BalanceStats>> => {
       if (!supabase) throw new Error('Supabase is not configured')
       const { data, error } = await supabase
         .from('transactions')
@@ -45,21 +47,22 @@ export function useAccountBalances() {
         .limit(20000)
       if (error) throw error
 
-      const map = new Map<number, { statement: number | null; sum: number }>()
+      const map: Record<string, BalanceStats> = {}
       for (const row of data ?? []) {
-        const cur = map.get(row.account_id) ?? { statement: null, sum: 0 }
+        const key = String(row.account_id)
+        const cur = map[key] ?? { statement: null, sum: 0 }
         cur.sum += row.amount
         if (cur.statement == null && row.balance != null) {
           cur.statement = row.balance
         }
-        map.set(row.account_id, cur)
+        map[key] = cur
       }
       return map
     },
   })
 
   const balances: AccountBalance[] = accounts.map((a) => {
-    const stats = balancesQuery.data?.get(a.id)
+    const stats = balancesQuery.data?.[String(a.id)]
     let balanceCents: number | null = null
     let source: AccountBalance['source'] = 'unknown'
 

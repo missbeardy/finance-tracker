@@ -16,7 +16,7 @@ createRoot(document.getElementById('root')!).render(
       persistOptions={{
         persister: queryPersister,
         maxAge: 1000 * 60 * 60 * 24,
-        buster: 'randall-finance-v1',
+        buster: 'randall-finance-v2',
       }}
     >
       <BrowserRouter>
