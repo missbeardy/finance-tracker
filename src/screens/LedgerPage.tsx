@@ -7,6 +7,7 @@ import { useAccounts } from '@/hooks/useAccounts'
 import { useCategories, useCreateCategory, type CategoryRow } from '@/hooks/useCategories'
 import { useUpdateTransactionCategory } from '@/hooks/useUpdateTransactionCategory'
 import { useMarkAsTransfer } from '@/hooks/useMarkAsTransfer'
+import { CategoryManager } from '@/components/CategoryManager'
 
 function nextColorToken(categories: CategoryRow[]): string {
   const topLevelCount = categories.filter((c) => c.parent_id == null).length
@@ -23,6 +24,7 @@ export function LedgerPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [addCategoryOpen, setAddCategoryOpen] = useState(false)
+  const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false)
   const [addCategoryTargetRowId, setAddCategoryTargetRowId] = useState<number | null>(null)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [newCategoryParentId, setNewCategoryParentId] = useState<number | ''>('')
@@ -157,13 +159,22 @@ export function LedgerPage() {
             />
           </label>
         </div>
-        <button
-          type="button"
-          className="text-xs font-medium text-flow"
-          onClick={() => openAddCategory(null)}
-        >
-          + New category
-        </button>
+        <div className="flex gap-4">
+          <button
+            type="button"
+            className="text-xs font-medium text-flow"
+            onClick={() => openAddCategory(null)}
+          >
+            + New category
+          </button>
+          <button
+            type="button"
+            className="text-xs font-medium text-flow"
+            onClick={() => setManageCategoriesOpen(true)}
+          >
+            Manage categories
+          </button>
+        </div>
         <input
           className="field"
           placeholder="Search merchant or description"
@@ -329,6 +340,38 @@ export function LedgerPage() {
               >
                 {createCategory.isPending ? 'Adding…' : 'Add category'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {manageCategoriesOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-4 sm:items-center"
+          onClick={() => setManageCategoriesOpen(false)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-sm overflow-y-auto rounded-lg bg-surface p-4 shadow-soft"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-base font-semibold text-ink">Manage categories</h2>
+                <p className="mt-1 text-xs text-ink-muted">
+                  Delete ones you'll never use, or merge one into another to keep its history.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="shrink-0 text-ink-muted"
+                aria-label="Close"
+                onClick={() => setManageCategoriesOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mt-3">
+              <CategoryManager />
             </div>
           </div>
         </div>
