@@ -3,12 +3,14 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/lib/auth'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useCategories } from '@/hooks/useCategories'
+import { useUncategorizedCount } from '@/hooks/useUncategorizedTransactions'
 import { supabase } from '@/lib/supabase'
 
 export function MorePage() {
   const { user, signOut } = useAuth()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
+  const { data: uncategorizedCount = 0 } = useUncategorizedCount()
   const { data: pendingTransfers = 0 } = useQuery({
     queryKey: ['transfers', 'pending', 'count'],
     queryFn: async (): Promise<number> => {
@@ -32,6 +34,17 @@ export function MorePage() {
       </p>
 
       <nav className="mt-8 space-y-2">
+        <MoreLink
+          to="/review"
+          label="Review & Categorize"
+          meta={
+            uncategorizedCount > 0
+              ? `${uncategorizedCount} to review`
+              : 'Queue clear'
+          }
+        />
+        <MoreLink to="/net-worth" label="Net worth" meta="Balances & assets" />
+        <MoreLink to="/debt" label="Debt payoff" meta="Loans & cards" />
         <MoreLink to="/accounts" label="Accounts" meta={`${accounts.length} accounts`} />
         <MoreLink
           to="/transfers"
@@ -67,7 +80,7 @@ function MoreLink({ to, label, meta }: { to: string; label: string; meta: string
   return (
     <Link
       to={to}
-      className="flex items-center justify-between rounded-lg bg-surface px-4 py-3 transition-colors duration-120 hover:bg-white"
+      className="flex min-h-11 items-center justify-between rounded-lg bg-surface px-4 py-3 transition-colors duration-120 hover:bg-white"
     >
       <span className="text-sm font-medium text-ink">{label}</span>
       <span className="text-xs text-ink-muted">{meta}</span>

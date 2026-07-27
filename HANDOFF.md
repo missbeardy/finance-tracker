@@ -23,4 +23,7 @@
 
 ```bash
 npm test
+npm run verify:rls   # RLS isolation across finance tables (needs Supabase URL + anon key)
 ```
+
+Security posture (RLS, import dedupe, secrets): see `docs/SECURITY.md`.

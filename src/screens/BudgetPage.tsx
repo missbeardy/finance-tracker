@@ -157,6 +157,14 @@ export function BudgetPage() {
   const overAllocated = totalAllocated > poolCents
   const remainingCents = poolCents - totalAllocated
   const structuralDeficit = poolCents < 0
+  const shortfallDriver = useMemo(() => {
+    const parts = [
+      { label: 'Committed bills', cents: committedMonthlyCents },
+      { label: 'Debt minimums', cents: debtMinimumsMonthlyCents },
+      { label: 'Savings target', cents: savingsTargetCents },
+    ].sort((a, b) => b.cents - a.cents)
+    return parts[0]?.cents ? parts[0].label : 'Outflows'
+  }, [committedMonthlyCents, debtMinimumsMonthlyCents, savingsTargetCents])
   const safeToSpendCents = structuralDeficit ? poolCents : remainingCents
   const [showBreakdown, setShowBreakdown] = useState(false)
 
@@ -224,17 +232,33 @@ export function BudgetPage() {
         </p>
       )}
 
-      {/* Sustainable budget calculation, §7.2 — Safe to Spend leads, breakdown is opt-in */}
+      {/* Sustainable budget — coaching first when short */}
       <div className="rounded-lg border border-hairline bg-surface p-4">
         {structuralDeficit ? (
           <>
-            <p className="text-xs font-semibold uppercase tracking-wide text-signal">Budget shortfall</p>
-            <p className="money mt-2 text-[36px] leading-none text-signal">{formatAud(poolCents)}</p>
-            <p className="mt-2 text-sm text-ink-muted">
-              Commitments, debt minimums and your savings target add up to more than your verified
-              income this period. Nothing is safe to allocate until income, commitments or the
-              savings target change.
+            <p className="text-xs uppercase tracking-wide text-ink-muted">What the numbers say</p>
+            <p className="mt-2 text-base font-semibold text-ink">
+              Income isn&apos;t covering commitments + savings yet
             </p>
+            <p className="money mt-3 text-[28px] leading-none text-signal">{formatAud(poolCents)}</p>
+            <p className="mt-3 text-sm text-ink-muted">
+              {shortfallDriver} is the largest outflow this period. Try confirming or trimming
+              commitments, adjusting your savings target, or checking income categories.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                to="/commitments"
+                className="inline-flex min-h-11 items-center rounded-xl bg-flow px-4 text-sm font-semibold text-white"
+              >
+                Review commitments
+              </Link>
+              <Link
+                to="/settings"
+                className="inline-flex min-h-11 items-center rounded-xl border border-hairline px-4 text-sm font-medium text-ink"
+              >
+                Adjust savings
+              </Link>
+            </div>
           </>
         ) : (
           <>
@@ -257,7 +281,7 @@ export function BudgetPage() {
         <button
           type="button"
           onClick={() => setShowBreakdown((v) => !v)}
-          className="mt-3 text-xs font-semibold text-flow"
+          className="mt-3 min-h-11 text-xs font-semibold text-flow"
         >
           {showBreakdown ? 'Hide breakdown ↑' : 'Show breakdown ↓'}
         </button>
@@ -272,6 +296,40 @@ export function BudgetPage() {
           </dl>
         )}
       </div>
+
+      {!structuralDeficit && macroBuckets.length > 0 && (
+        <div className="rounded-lg border border-hairline bg-surface p-4">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+            Allocation snapshot
+          </h2>
+          <ul className="mt-3 space-y-3">
+            {macroBuckets.map((bucket) => {
+              const allocated = bucket.lines.reduce((s, l) => s + l.allocatedCents, 0)
+              const spent = bucket.lines.reduce((s, l) => s + l.spentCents, 0)
+              const pct = allocated > 0 ? Math.min(100, Math.round((spent / allocated) * 100)) : 0
+              return (
+                <li key={bucket.key}>
+                  <div className="flex items-baseline justify-between gap-2 text-sm">
+                    <span className="text-ink">{bucket.meta.label}</span>
+                    <span className="ledger-mono text-ink-muted">
+                      {formatAud(spent)} / {formatAud(allocated)}
+                    </span>
+                  </div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-paper-deep">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${Math.max(pct > 0 ? 4 : 0, pct)}%`,
+                        background: catColor(bucket.meta.colorToken),
+                      }}
+                    />
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
 
       <Link
         to="/commitments"

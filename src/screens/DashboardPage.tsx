@@ -1,39 +1,24 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts'
+import { Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer } from 'recharts'
 import { format, parseISO } from 'date-fns'
 import { formatAud } from '@/lib/money'
 import { rangeForPeriod, type PeriodKey } from '@/lib/period'
 import { useDashboardData, type DashTxn } from '@/hooks/useDashboardData'
 import { useSettings } from '@/hooks/useSettings'
+import { useAccountBalances } from '@/hooks/useAccountBalances'
+import { useSavingsGoals } from '@/hooks/useSavingsGoals'
 import { useAuth } from '@/lib/auth'
 import { COLOR_TOKEN_HEX, type ColorToken } from '@/lib/accounts'
+import { QueryError } from '@/components/QueryError'
+import { MoneySankey } from '@/components/MoneySankey'
+import { getErrorMessage } from '@/lib/errors'
 
-type Scope = 'personal' | 'family'
-
-/** Visual preview goals for Family view until household goals are wired. */
-const FAMILY_GOAL_PREVIEW = [
-  {
-    id: 'vacation',
-    name: 'Vacation fund',
-    current: 320_000,
-    target: 500_000,
-    accent: COLOR_TOKEN_HEX['cat-2'],
-  },
-  {
-    id: 'car',
-    name: 'New car',
-    current: 875_000,
-    target: 2_500_000,
-    accent: COLOR_TOKEN_HEX['cat-4'],
-  },
-  {
-    id: 'reno',
-    name: 'Home reno',
-    current: 150_000,
-    target: 1_000_000,
-    accent: COLOR_TOKEN_HEX['cat-1'],
-  },
+const GOAL_ACCENTS = [
+  COLOR_TOKEN_HEX['cat-2'],
+  COLOR_TOKEN_HEX['cat-4'],
+  COLOR_TOKEN_HEX['cat-1'],
+  COLOR_TOKEN_HEX['cat-6'],
 ] as const
 
 function displayName(email: string | undefined, meta: Record<string, unknown> | undefined): string {
@@ -62,12 +47,15 @@ function timeGreeting(now = new Date()): string {
   return 'Good evening'
 }
 
+type NotifItem = { key: string; label: string; to: string }
+
 export function DashboardPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { data: settings } = useSettings()
   const [period, setPeriod] = useState<PeriodKey>('this_month')
-  const [scope, setScope] = useState<Scope>('personal')
+  const [notifOpen, setNotifOpen] = useState(false)
+  const notifRef = useRef<HTMLDivElement>(null)
 
   const range = useMemo(
     () =>
@@ -77,13 +65,60 @@ export function DashboardPage() {
     [period, settings?.payday],
   )
 
-  const { outbound, topCategories, alerts, isLoading, error, data } = useDashboardData(range)
+  const { outbound, topCategories, alerts, isLoading, error, data, refetch, sankey, netSeries } =
+    useDashboardData(range)
+  const netSeriesSafe = netSeries ?? []
+  const sankeySafe = sankey ?? []
+  const { netWorthCents, isLoading: netWorthLoading } = useAccountBalances()
+  const { data: savingsGoals } = useSavingsGoals()
+
+  useEffect(() => {
+    if (!notifOpen) return
+    function onPointerDown(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    return () => document.removeEventListener('mousedown', onPointerDown)
+  }, [notifOpen])
 
   const firstName = displayName(
     user?.email,
     user?.user_metadata as Record<string, unknown> | undefined,
   )
   const avatarInitials = initials(firstName)
+
+  const notifItems = useMemo<NotifItem[]>(() => {
+    const items: NotifItem[] = []
+    if ((alerts?.uncategorised ?? 0) > 0) {
+      items.push({
+        key: 'uncategorised',
+        label: `Review ${alerts!.uncategorised} uncategorised`,
+        to: '/review',
+      })
+    }
+    if ((alerts?.pendingTransfers ?? 0) > 0) {
+      items.push({
+        key: 'transfers',
+        label: `${alerts!.pendingTransfers} transfers to review`,
+        to: '/transfers',
+      })
+    }
+    if (alerts?.daysSinceImport != null && alerts.daysSinceImport >= 7) {
+      items.push({
+        key: 'import',
+        label: `Last import ${alerts.daysSinceImport}d ago`,
+        to: '/import',
+      })
+    }
+    return items
+  }, [alerts])
+
+  const notifCount =
+    (alerts?.uncategorised ?? 0) +
+    (alerts?.pendingTransfers ?? 0) +
+    (alerts?.daysSinceImport != null && alerts.daysSinceImport >= 7 ? 1 : 0)
 
   const chartData = useMemo(() => {
     const total = topCategories.reduce((s, c) => s + c.cents, 0) || 1
@@ -118,6 +153,8 @@ export function DashboardPage() {
       ? Math.min(100, Math.round((savingsProgressCents / savingsTarget) * 100))
       : 0
 
+  const hasGoals = (savingsGoals?.length ?? 0) > 0
+
   return (
     <section className="relative space-y-4 pb-16">
       {/* Full-bleed purple hero */}
@@ -148,29 +185,56 @@ export function DashboardPage() {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/85"
-            aria-label="Notifications"
-            title="Notifications coming soon"
-          >
-            <BellIcon />
-          </button>
+
+          <div className="relative shrink-0" ref={notifRef}>
+            <button
+              type="button"
+              onClick={() => setNotifOpen((v) => !v)}
+              className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/85"
+              aria-label="Notifications"
+              aria-expanded={notifOpen}
+              aria-haspopup="menu"
+            >
+              <BellIcon />
+              {notifCount > 0 && (
+                <span
+                  className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-signal px-1 text-xs font-semibold text-white"
+                  aria-hidden
+                >
+                  {notifCount}
+                </span>
+              )}
+            </button>
+
+            {notifOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full z-40 mt-2 w-64 rounded-lg bg-surface p-2 text-ink shadow-soft"
+              >
+                {notifItems.length === 0 ? (
+                  <p className="px-3 py-3 text-sm text-ink-muted">You&rsquo;re caught up</p>
+                ) : (
+                  <ul>
+                    {notifItems.map((item) => (
+                      <li key={item.key}>
+                        <Link
+                          to={item.to}
+                          role="menuitem"
+                          onClick={() => setNotifOpen(false)}
+                          className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink hover:bg-paper-deep"
+                        >
+                          {item.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="relative mt-5 flex flex-wrap items-center gap-2">
-          <div
-            role="group"
-            aria-label="Dashboard scope"
-            className="inline-flex rounded-full bg-white/10 p-1"
-          >
-            <ScopeButton active={scope === 'personal'} onClick={() => setScope('personal')}>
-              Personal
-            </ScopeButton>
-            <ScopeButton active={scope === 'family'} onClick={() => setScope('family')}>
-              Family
-            </ScopeButton>
-          </div>
           <label className="sr-only" htmlFor="dash-period">
             Period
           </label>
@@ -199,23 +263,38 @@ export function DashboardPage() {
         </p>
       )}
       {error && (
-        <p className="text-sm text-signal" role="alert">
-          {error.message}
-        </p>
+        <QueryError message={getErrorMessage(error)} onRetry={() => void refetch()} />
       )}
+
+      {/* Net worth strip */}
+      <Link
+        to="/net-worth"
+        className="block rounded-lg border border-hairline bg-surface p-4"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-ink">Net worth</h2>
+            {netWorthLoading ? (
+              <p className="mt-2 text-sm text-ink-muted">Loading…</p>
+            ) : netWorthCents == null ? (
+              <p className="mt-2 text-sm text-ink-muted">
+                Add opening balances or import with balance column
+              </p>
+            ) : (
+              <p className="money mt-2 text-[28px] text-ink">{formatAud(netWorthCents)}</p>
+            )}
+          </div>
+          <span aria-hidden className="shrink-0 text-sm font-semibold text-flow">
+            →
+          </span>
+        </div>
+      </Link>
 
       {/* Monthly spending — donut + legend */}
       <div className="rounded-lg border border-hairline bg-surface p-4">
-        <h2 className="text-base font-semibold text-ink">
-          {scope === 'family' ? 'Family spending' : 'Monthly spending'}
-        </h2>
+        <h2 className="text-base font-semibold text-ink">Monthly spending</h2>
 
-        {scope === 'family' ? (
-          <p className="mt-4 text-sm text-ink-muted">
-            Shared household spending isn’t connected yet. Switch to Personal for your ledger
-            totals.
-          </p>
-        ) : chartData.length === 0 ? (
+        {chartData.length === 0 ? (
           <div className="mt-4 space-y-3">
             <p className="text-sm text-ink-muted">
               No spending in this period yet. Import a CSV to get started.
@@ -272,33 +351,75 @@ export function DashboardPage() {
             </div>
           </div>
         )}
+
+        <Link
+          to="/insights"
+          className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-flow"
+        >
+          More insights →
+        </Link>
       </div>
 
-      {/* Shared / personal goals */}
+      {/* Net trend sparkline */}
+      {netSeriesSafe.length > 1 && (
+        <div className="rounded-lg border border-hairline bg-surface p-4">
+          <h2 className="text-base font-semibold text-ink">Net trend</h2>
+          <div className="mt-4 h-20">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={netSeriesSafe}>
+                <Line
+                  type="monotone"
+                  dataKey="net"
+                  stroke="var(--flow)"
+                  strokeWidth={2}
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Money flow */}
+      {sankeySafe.length > 0 && (
+        <div className="rounded-lg border border-hairline bg-surface p-4">
+          <h2 className="text-base font-semibold text-ink">Where money flows</h2>
+          <div className="mt-4">
+            <MoneySankey links={sankeySafe} onCategoryClick={() => navigate('/ledger')} />
+          </div>
+        </div>
+      )}
+
+      {/* Savings goals */}
       <div className="rounded-lg border border-hairline bg-surface p-4">
         <div className="mb-1 flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold text-ink">
-            {scope === 'family' ? 'Family shared goals' : 'Savings goal'}
-          </h2>
-          {scope === 'family' && (
-            <span className="rounded-full bg-paper-deep px-2 py-1 text-xs font-medium text-ink-muted">
-              Preview
-            </span>
+          <h2 className="text-base font-semibold text-ink">Savings goals</h2>
+          {hasGoals && (
+            <Link
+              to="/settings#savings-goals"
+              className="min-h-11 inline-flex items-center text-sm font-semibold text-flow"
+            >
+              Manage goals →
+            </Link>
           )}
         </div>
 
-        {scope === 'family' ? (
+        {hasGoals ? (
           <ul className="mt-4 space-y-4">
-            {FAMILY_GOAL_PREVIEW.map((goal) => {
-              const pct = Math.min(100, Math.round((goal.current / goal.target) * 100))
+            {savingsGoals!.map((goal, i) => {
+              const accent = GOAL_ACCENTS[i % GOAL_ACCENTS.length]!
+              const pct =
+                goal.target_cents > 0
+                  ? Math.min(100, Math.round((goal.current_cents / goal.target_cents) * 100))
+                  : 0
               return (
                 <li key={goal.id} className="flex items-start gap-3">
                   <div
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-                    style={{ background: `color-mix(in srgb, ${goal.accent} 16%, white)` }}
+                    style={{ background: `color-mix(in srgb, ${accent} 16%, white)` }}
                     aria-hidden
                   >
-                    <GoalGlyph accent={goal.accent} />
+                    <GoalGlyph accent={accent} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
@@ -306,16 +427,16 @@ export function DashboardPage() {
                       <p className="ledger-mono shrink-0 text-sm text-ink-muted">{pct}%</p>
                     </div>
                     <p className="mt-1 money text-right text-sm text-ink-muted">
-                      {formatAud(goal.current)}
+                      {formatAud(goal.current_cents)}
                       <span> / </span>
-                      {formatAud(goal.target)}
+                      {formatAud(goal.target_cents)}
                     </p>
                     <div className="mt-2 h-2 overflow-hidden rounded-full bg-paper-deep">
                       <div
                         className="h-full rounded-full transition-[width] duration-300"
                         style={{
                           width: `${Math.max(pct > 0 ? 4 : 0, pct)}%`,
-                          background: goal.accent,
+                          background: accent,
                         }}
                       />
                     </div>
@@ -323,12 +444,6 @@ export function DashboardPage() {
                 </li>
               )
             })}
-            <li>
-              <p className="text-xs text-ink-muted">
-                Sample goals for layout. Real shared goals will replace these once household sync
-                is on.
-              </p>
-            </li>
           </ul>
         ) : savingsTarget == null || savingsTarget <= 0 ? (
           <div className="mt-4">
@@ -377,11 +492,7 @@ export function DashboardPage() {
           </Link>
         </div>
 
-        {scope === 'family' ? (
-          <p className="text-sm text-ink-muted">
-            Family member feeds aren’t available yet. Switch to Personal for your activity.
-          </p>
-        ) : recentTxns.length === 0 ? (
+        {recentTxns.length === 0 ? (
           <p className="text-sm text-ink-muted">No transactions in this period.</p>
         ) : (
           <ul>
@@ -403,7 +514,7 @@ export function DashboardPage() {
         <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
           {(alerts.uncategorised ?? 0) > 0 && (
             <Link
-              to="/ledger"
+              to="/review"
               className="shrink-0 rounded-xl border border-hairline bg-surface px-3 py-2 font-medium text-ink"
             >
               {alerts.uncategorised} uncategorised
@@ -441,30 +552,6 @@ export function DashboardPage() {
         Add expense
       </button>
     </section>
-  )
-}
-
-function ScopeButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={[
-        'min-h-11 rounded-full px-4 text-sm font-semibold transition-colors',
-        active ? 'bg-flow text-white' : 'text-white/70',
-      ].join(' ')}
-    >
-      {children}
-    </button>
   )
 }
 

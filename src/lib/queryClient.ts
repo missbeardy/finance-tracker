@@ -1,10 +1,20 @@
-import { QueryClient } from '@tanstack/react-query'
+import { MutationCache, QueryClient } from '@tanstack/react-query'
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister'
 import { get, set, del, clear } from 'idb-keyval'
+import { getErrorMessage } from '@/lib/errors'
+import { toast } from '@/lib/toastBus'
 
 export const QUERY_CACHE_KEY = 'randall-finance-query-cache'
 
 export const queryClient = new QueryClient({
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => {
+      // Allow a mutation to silence the global toast when it handles UI itself.
+      const meta = mutation.options.meta as { suppressToast?: boolean } | undefined
+      if (meta?.suppressToast) return
+      toast.error(getErrorMessage(error, 'Save failed — try again'))
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: 60_000,

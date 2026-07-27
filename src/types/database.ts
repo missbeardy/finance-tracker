@@ -79,6 +79,36 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: number
+          payload: Json
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: never
+          payload?: Json
+          user_id?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: never
+          payload?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       budgets: {
         Row: {
           amount: number
@@ -387,6 +417,42 @@ export type Database = {
           },
         ]
       }
+      savings_goals: {
+        Row: {
+          created_at: string
+          current_cents: number
+          id: number
+          name: string
+          sort_order: number
+          target_cents: number
+          target_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_cents?: number
+          id?: never
+          name: string
+          sort_order?: number
+          target_cents: number
+          target_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          current_cents?: number
+          id?: never
+          name?: string
+          sort_order?: number
+          target_cents?: number
+          target_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       settings: {
         Row: {
           created_at: string
@@ -601,7 +667,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      apply_rule_to_transactions: {
+        Args: {
+          p_rule_id: number
+          p_scope?: string
+          p_dry_run?: boolean
+        }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

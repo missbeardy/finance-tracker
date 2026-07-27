@@ -185,6 +185,9 @@ create index on public.transfers (user_id);
 create index on public.transactions (user_id, date desc);
 create index on public.transactions (user_id, account_id, date);
 create index on public.transactions (user_id, dedupe_key);
+-- Note: intentionally NOT unique. Import uses count-delta matching so
+-- legitimate same-day duplicate purchases (same account/date/amount/merchant)
+-- can coexist. See docs/SECURITY.md.
 create index on public.transactions (user_id, category_id);
 create index on public.transactions (user_id, transfer_id) where transfer_id is not null;
 create index on public.transactions (user_id, status) where status <> 'active';

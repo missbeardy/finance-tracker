@@ -12,6 +12,9 @@ import { ImportsPage } from '@/screens/ImportsPage'
 import { InsightsPage } from '@/screens/InsightsPage'
 import { LedgerPage } from '@/screens/LedgerPage'
 import { MorePage } from '@/screens/MorePage'
+import { NetWorthPage } from '@/screens/NetWorthPage'
+import { DebtPage } from '@/screens/DebtPage'
+import { ReviewPage } from '@/screens/ReviewPage'
 import { SettingsPage } from '@/screens/SettingsPage'
 import { TransfersPage } from '@/screens/TransfersPage'
 import { useAuth } from '@/lib/auth'
@@ -53,6 +56,9 @@ export function App() {
         <Route path="import" element={<ImportPage />} />
         <Route path="imports" element={<ImportsPage />} />
         <Route path="insights" element={<InsightsPage />} />
+        <Route path="review" element={<ReviewPage />} />
+        <Route path="net-worth" element={<NetWorthPage />} />
+        <Route path="debt" element={<DebtPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

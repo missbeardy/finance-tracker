@@ -8,6 +8,7 @@ export type SettingsRow = Database['public']['Tables']['settings']['Row']
 export function useSettings() {
   return useQuery({
     queryKey: ['settings'],
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<SettingsRow | null> => {
       if (!supabase) throw new Error('Supabase is not configured')
       const { data, error } = await supabase.from('settings').select('*').maybeSingle()

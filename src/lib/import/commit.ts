@@ -233,6 +233,8 @@ export async function commitImport(args: {
     }
   }
 
+  // Count-delta dedupe (not a unique constraint) so legitimate same-day
+  // duplicate purchases can still insert. See docs/SECURITY.md.
   const { toInsert, duplicatesSkipped } = selectRowsToInsert(prepared, existingCounts)
 
   const dates = prepared.map((r) => r.date).sort()

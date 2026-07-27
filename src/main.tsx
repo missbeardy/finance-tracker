@@ -4,6 +4,8 @@ import { BrowserRouter } from 'react-router-dom'
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { AuthProvider } from '@/lib/auth'
 import { queryClient, queryPersister } from '@/lib/queryClient'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { ToastHost } from '@/components/ToastHost'
 import { App } from '@/App'
 import './index.css'
 
@@ -19,7 +21,10 @@ createRoot(document.getElementById('root')!).render(
     >
       <BrowserRouter>
         <AuthProvider>
-          <App />
+          <ErrorBoundary>
+            <App />
+            <ToastHost />
+          </ErrorBoundary>
         </AuthProvider>
       </BrowserRouter>
     </PersistQueryClientProvider>

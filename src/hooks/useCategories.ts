@@ -7,6 +7,7 @@ export type CategoryRow = Database['public']['Tables']['categories']['Row']
 export function useCategories() {
   return useQuery({
     queryKey: ['categories'],
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<CategoryRow[]> => {
       if (!supabase) throw new Error('Supabase is not configured')
       const { data, error } = await supabase

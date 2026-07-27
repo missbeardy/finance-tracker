@@ -10,6 +10,7 @@ import {
 import type { Session, User } from '@supabase/supabase-js'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { clearQueryCache } from '@/lib/queryClient'
+import { clearBootstrapSession } from '@/lib/bootstrap'
 
 type AuthContextValue = {
   session: Session | null
@@ -84,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     if (!supabase) return
     await supabase.auth.signOut()
+    clearBootstrapSession()
     await clearQueryCache()
   }, [])
 

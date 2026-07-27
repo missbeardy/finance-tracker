@@ -8,6 +8,8 @@ import { useCategories, useCreateCategory, type CategoryRow } from '@/hooks/useC
 import { useUpdateTransactionCategory } from '@/hooks/useUpdateTransactionCategory'
 import { useMarkAsTransfer } from '@/hooks/useMarkAsTransfer'
 import { CategoryManager } from '@/components/CategoryManager'
+import { QueryError } from '@/components/QueryError'
+import { getErrorMessage } from '@/lib/errors'
 
 function nextColorToken(categories: CategoryRow[]): string {
   const topLevelCount = categories.filter((c) => c.parent_id == null).length
@@ -43,7 +45,7 @@ export function LedgerPage() {
     [accountId, categoryId, search, showTransfers, showExcluded, dateFrom, dateTo],
   )
 
-  const { data: rows = [], isLoading, error } = useTransactions(filters)
+  const { data: rows = [], isLoading, error, refetch } = useTransactions(filters)
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const updateCategory = useUpdateTransactionCategory()
@@ -204,9 +206,7 @@ export function LedgerPage() {
 
       {isLoading && <p className="text-sm text-ink-muted">Loading ledger…</p>}
       {error && (
-        <p className="text-sm text-signal" role="alert">
-          {error.message}
-        </p>
+        <QueryError message={getErrorMessage(error)} onRetry={() => void refetch()} />
       )}
 
       {!isLoading && rows.length === 0 && (

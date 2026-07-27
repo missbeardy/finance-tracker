@@ -6,6 +6,7 @@ import {
   useDeleteAccount,
   useUpdateAccount,
 } from '@/hooks/useAccounts'
+import { useAccountBalances, isLiabilityType } from '@/hooks/useAccountBalances'
 import {
   ACCOUNT_TYPES,
   COLOR_TOKENS,
@@ -59,6 +60,11 @@ function draftFromAccount(account: AccountRow): Draft {
 
 export function AccountsPage() {
   const { data: accounts = [], isLoading, error } = useAccounts()
+  const { balances, netWorthCents } = useAccountBalances()
+  const balanceById = useMemo(
+    () => new Map(balances.map((b) => [b.accountId, b])),
+    [balances],
+  )
   const createAccount = useCreateAccount()
   const updateAccount = useUpdateAccount()
   const deleteAccount = useDeleteAccount()
@@ -193,6 +199,19 @@ export function AccountsPage() {
         <p className="text-sm text-signal" role="alert">
           {error.message}
         </p>
+      )}
+
+      {netWorthCents != null && (
+        <Link
+          to="/net-worth"
+          className="mb-6 flex items-center justify-between rounded-lg border border-hairline bg-surface p-4"
+        >
+          <div>
+            <p className="text-xs uppercase tracking-wide text-ink-muted">Net worth</p>
+            <p className="money mt-1 text-[20px] text-ink">{formatAud(netWorthCents)}</p>
+          </div>
+          <span className="text-sm font-semibold text-flow">Details →</span>
+        </Link>
       )}
 
       {editingId != null ? (
@@ -368,11 +387,22 @@ export function AccountsPage() {
                       {account.institution} · {account.type.replace('_', ' ')}
                       {!account.is_imported ? ' · not imported' : ''}
                     </p>
-                    {account.opening_balance != null && (
-                      <p className="money mt-2 text-lg text-ink">
-                        {formatAud(account.opening_balance)}
-                      </p>
-                    )}
+                    {(() => {
+                      const bal = balanceById.get(account.id)
+                      if (bal?.balanceCents == null && account.opening_balance == null) {
+                        return (
+                          <p className="mt-2 text-xs text-ink-muted">No balance yet</p>
+                        )
+                      }
+                      const cents =
+                        bal?.balanceCents ?? account.opening_balance ?? 0
+                      const display = isLiabilityType(account.type)
+                        ? -Math.abs(cents)
+                        : cents
+                      return (
+                        <p className="money mt-2 text-lg text-ink">{formatAud(display)}</p>
+                      )
+                    })()}
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">

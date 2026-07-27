@@ -1,6 +1,7 @@
 import { selectRowsToInsert, type IncomingTxn } from '../src/lib/ledger/dedupe.ts'
 import { matchTransfers } from '../src/lib/ledger/transfers.ts'
 import { matchCategory } from '../src/lib/ledger/categorise.ts'
+import { suggestRulePattern } from '../src/lib/ledger/suggestRulePattern.ts'
 import { buildTransferFixtures } from '../src/fixtures/seed.ts'
 
 function assert(cond: unknown, msg: string) {
@@ -43,6 +44,14 @@ const coffee: IncomingTxn = {
     ],
   )
   assert(hit?.categoryId === 99, 'woolworths rule')
+}
+
+{
+  assert(
+    suggestRulePattern('DBF*ITSOURTIME BEAUDESERT 0724') === 'DBF*ITSOURTIME BEAUDESERT',
+    'strip trailing ref digits',
+  )
+  assert(suggestRulePattern('WOOLWORTHS') === 'WOOLWORTHS', 'keep clean merchant')
 }
 
 // Transfers fixtures 1–5

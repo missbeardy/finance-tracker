@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 import Papa from 'papaparse'
-import { useQueryClient } from '@tanstack/react-query'
 import { useAccounts, useCreateAccount } from '@/hooks/useAccounts'
 import { ACCOUNT_TYPES, COLOR_TOKENS, type AccountType } from '@/lib/accounts'
 import {
@@ -16,7 +15,7 @@ import {
 } from '@/lib/csv/mapping'
 import { suggestAccountMap } from '@/lib/csv/accountMatch'
 import { formatAud } from '@/lib/money'
-import { commitImport } from '@/lib/import/commit'
+import { useCommitImport } from '@/hooks/useImportMutations'
 import { sha1Hex } from '@/lib/ledger/dedupe'
 import { useSettings, useUpdateSettings } from '@/hooks/useSettings'
 import type { Json } from '@/types/database'
@@ -57,12 +56,12 @@ const FIELD_OPTIONS: { value: CsvField; label: string }[] = [
 export function ImportPage() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
-  const qc = useQueryClient()
   const preselectedAccountId = Number(params.get('accountId') || '') || null
   const { data: accounts = [] } = useAccounts()
   const { data: settings } = useSettings()
   const updateSettings = useUpdateSettings()
   const createAccount = useCreateAccount()
+  const commitImportMutation = useCommitImport()
 
   const [step, setStep] = useState<Step>('drop')
   const [filename, setFilename] = useState('')
@@ -73,7 +72,6 @@ export function ImportPage() {
   const [accountId, setAccountId] = useState<number | null>(preselectedAccountId)
   const [accountLabelMap, setAccountLabelMap] = useState<Record<string, number | null>>({})
   const [error, setError] = useState<string | null>(null)
-  const [committing, setCommitting] = useState(false)
   const [resultSummary, setResultSummary] = useState<string | null>(null)
   const [headerHash, setHeaderHash] = useState<string | null>(null)
   const [creatingLabel, setCreatingLabel] = useState<string | null>(null)
@@ -350,7 +348,6 @@ export function ImportPage() {
 
   async function handleCommit() {
     if (!canCommit) return
-    setCommitting(true)
     setError(null)
     try {
       const labelMapSaved: Record<string, number> = {}
@@ -372,7 +369,7 @@ export function ImportPage() {
         })
       }
 
-      const result = await commitImport({
+      const result = await commitImportMutation.mutateAsync({
         filename,
         accountId: multiAccount ? null : accountId,
         mappingProfileHash: headerHash,
@@ -387,9 +384,6 @@ export function ImportPage() {
         })),
       })
 
-      await qc.invalidateQueries({ queryKey: ['transactions'] })
-      await qc.invalidateQueries({ queryKey: ['imports'] })
-
       setResultSummary(
         `Imported ${result.inserted} rows across ${accountsUsed} account${accountsUsed === 1 ? '' : 's'}` +
           (result.duplicatesSkipped ? `, skipped ${result.duplicatesSkipped} duplicates` : '') +
@@ -403,8 +397,6 @@ export function ImportPage() {
       setStep('done')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed')
-    } finally {
-      setCommitting(false)
     }
   }
 
@@ -661,11 +653,11 @@ export function ImportPage() {
             </p>
             <button
               type="button"
-              disabled={!canCommit || committing || !navigator.onLine}
+              disabled={!canCommit || commitImportMutation.isPending || !navigator.onLine}
               className="mt-3 rounded-md bg-flow px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
               onClick={() => void handleCommit()}
             >
-              {committing
+              {commitImportMutation.isPending
                 ? 'Importing…'
                 : !navigator.onLine
                   ? 'Offline — connect to import'

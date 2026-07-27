@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { formatAud, parseDollarsToCents } from '@/lib/money'
 import { paceDaysDelta } from '@/lib/budget/calc'
+import { paceLabel } from '@/lib/budget/paceLabel'
 
 export type MicroCategoryLine = {
   id: number
@@ -81,8 +82,8 @@ export function CategoryGroupCard({
             />
           </div>
           {pace != null && allocatedCents > 0 && (
-            <p className={['mt-1 text-[11px]', pace < 0 ? 'font-medium text-signal' : 'text-ink-muted'].join(' ')}>
-              {pace === 0 ? 'On pace' : pace > 0 ? `${pace}d ahead of pace` : `${Math.abs(pace)}d behind pace`}
+            <p className={['mt-1 text-xs', pace < 0 ? 'font-medium text-signal' : 'text-ink-muted'].join(' ')}>
+              {paceLabel(pace)}
             </p>
           )}
         </div>

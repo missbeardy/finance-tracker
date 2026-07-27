@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '@/lib/auth'
-import { ensureUserBootstrap } from '@/lib/bootstrap'
+import { ensureUserBootstrap, isBootstrapComplete } from '@/lib/bootstrap'
 
 export function BootstrapGate({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const userId = user?.id ?? null
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(() => (userId ? isBootstrapComplete(userId) : false))
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
   const [slowHint, setSlowHint] = useState(false)
@@ -20,6 +20,13 @@ export function BootstrapGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId) {
       setReady(false)
+      return
+    }
+
+    // Already prepared this session — skip the full-screen seeding flash on remount/nav.
+    if (isBootstrapComplete(userId) && attempt === 0) {
+      setReady(true)
+      setError(null)
       return
     }
 

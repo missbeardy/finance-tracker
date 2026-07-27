@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { CATEGORY_SEED, OPAQUE_CATEGORY_NAMES } from '@/lib/categories/seed'
 import { AU_MERCHANT_SEED_RULES } from '@/lib/categories/auRules'
+import { formatSupabaseError, isUniqueViolation } from '@/lib/errors'
 
 /** Critical path only (categories + settings). Rules seed in the background. */
 const BOOTSTRAP_TIMEOUT_MS = 20_000
@@ -12,6 +13,23 @@ const BOOTSTRAP_TIMEOUT_MS = 20_000
  */
 const inFlightBootstraps = new Map<string, Promise<void>>()
 
+/** Users whose critical bootstrap already succeeded this JS session. */
+const completedBootstraps = new Set<string>()
+
+export function isBootstrapComplete(userId: string): boolean {
+  return completedBootstraps.has(userId)
+}
+
+export function clearBootstrapSession(userId?: string) {
+  if (userId) {
+    completedBootstraps.delete(userId)
+    inFlightBootstraps.delete(userId)
+    return
+  }
+  completedBootstraps.clear()
+  inFlightBootstraps.clear()
+}
+
 /**
  * First-login bootstrap: seed categories and settings (required to enter the app).
  * Merchant rules are best-effort and do not block the gate.
@@ -20,6 +38,8 @@ const inFlightBootstraps = new Map<string, Promise<void>>()
 export async function ensureUserBootstrap(userId: string): Promise<void> {
   if (!supabase) throw new Error('Supabase is not configured')
 
+  if (completedBootstraps.has(userId)) return
+
   const existing = inFlightBootstraps.get(userId)
   if (existing) return existing
 
@@ -27,9 +47,13 @@ export async function ensureUserBootstrap(userId: string): Promise<void> {
     throw new Error(
       'Preparing your ledger timed out. Check your connection and that the Supabase schema is applied (see HANDOFF.md).',
     )
-  }).finally(() => {
-    inFlightBootstraps.delete(userId)
   })
+    .then(() => {
+      completedBootstraps.add(userId)
+    })
+    .finally(() => {
+      inFlightBootstraps.delete(userId)
+    })
 
   inFlightBootstraps.set(userId, attempt)
   await attempt
@@ -264,17 +288,3 @@ function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout: () => never)
   })
 }
 
-function isUniqueViolation(error: { code?: string; message?: string }): boolean {
-  return error.code === '23505' || (error.message?.toLowerCase().includes('duplicate') ?? false)
-}
-
-function formatSupabaseError(
-  prefix: string,
-  error: { message?: string; code?: string; details?: string; hint?: string },
-): string {
-  const parts = [prefix]
-  if (error.message) parts.push(error.message)
-  if (error.code) parts.push(`(${error.code})`)
-  if (error.hint) parts.push(error.hint)
-  return parts.join(' — ')
-}

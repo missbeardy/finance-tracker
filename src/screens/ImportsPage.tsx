@@ -1,17 +1,16 @@
 import { Link } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
 import { useImports } from '@/hooks/useTransactions'
-import { undoImport } from '@/lib/import/commit'
+import { useUndoImport } from '@/hooks/useImportMutations'
+import { QueryError } from '@/components/QueryError'
+import { getErrorMessage } from '@/lib/errors'
 
 export function ImportsPage() {
-  const { data: imports = [], isLoading, error } = useImports()
-  const qc = useQueryClient()
+  const { data: imports = [], isLoading, error, refetch } = useImports()
+  const undoImport = useUndoImport()
 
   async function handleUndo(id: number, filename: string) {
     if (!confirm(`Undo import “${filename}”? This deletes those transactions.`)) return
-    await undoImport(id)
-    await qc.invalidateQueries({ queryKey: ['imports'] })
-    await qc.invalidateQueries({ queryKey: ['transactions'] })
+    await undoImport.mutateAsync(id)
   }
 
   return (
@@ -30,13 +29,11 @@ export function ImportsPage() {
 
       {isLoading && <p className="text-sm text-ink-muted">Loading…</p>}
       {error && (
-        <p className="text-sm text-signal" role="alert">
-          {error.message}
-        </p>
+        <QueryError message={getErrorMessage(error)} onRetry={() => void refetch()} />
       )}
 
       <ul className="space-y-3">
-        {imports.length === 0 && (
+        {imports.length === 0 && !isLoading && !error && (
           <li className="rounded-lg bg-surface p-4 text-sm text-ink-muted">
             No imports yet.
           </li>
@@ -58,7 +55,8 @@ export function ImportsPage() {
               </div>
               <button
                 type="button"
-                className="text-xs font-medium text-signal"
+                className="min-h-11 text-xs font-medium text-signal"
+                disabled={undoImport.isPending}
                 onClick={() => void handleUndo(row.id, row.filename)}
               >
                 Undo
