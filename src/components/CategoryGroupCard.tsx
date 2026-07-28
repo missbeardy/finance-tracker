@@ -67,7 +67,7 @@ export function CategoryGroupCard({
       >
         <span
           className="emoji-icon !h-9 !w-9 !text-[16px]"
-          style={{ boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.35), 0 0 14px -4px ${color}` }}
+          style={{ boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.35), 0 0 7px -4px ${color}` }}
           aria-hidden
         >
           {categoryEmoji(label)}
@@ -88,7 +88,7 @@ export function CategoryGroupCard({
               style={{
                 width: `${Math.max(pct > 0 ? 4 : 0, pct)}%`,
                 background: over ? 'var(--signal)' : color,
-                boxShadow: over ? '0 0 10px var(--signal)' : `0 0 10px ${color}`,
+                boxShadow: over ? '0 0 5px var(--signal)' : `0 0 5px ${color}`,
               }}
             />
           </div>

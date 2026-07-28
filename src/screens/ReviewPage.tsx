@@ -37,6 +37,7 @@ export function ReviewPage() {
   const [savePrompt, setSavePrompt] = useState<SaveRulePrompt | null>(null)
   const [applyPreview, setApplyPreview] = useState<number | null>(null)
   const [applyingPreview, setApplyingPreview] = useState(false)
+  const [search, setSearch] = useState('')
 
   const leafCategories = useMemo(
     () =>
@@ -54,19 +55,39 @@ export function ReviewPage() {
     return map
   }, [categories])
 
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return rows
+    return rows.filter((r) => {
+      const hay = [r.merchant, r.description, r.accounts?.name ?? '']
+        .join(' ')
+        .toLowerCase()
+      return hay.includes(q)
+    })
+  }, [rows, search])
+
   const totalCents = useMemo(
-    () => rows.reduce((sum, r) => sum + Math.abs(r.amount), 0),
-    [rows],
+    () => filteredRows.reduce((sum, r) => sum + Math.abs(r.amount), 0),
+    [filteredRows],
   )
 
-  const allSelected = rows.length > 0 && selected.size === rows.length
+  const allSelected =
+    filteredRows.length > 0 && filteredRows.every((r) => selected.has(r.id))
 
   function toggleAll() {
     if (allSelected) {
-      setSelected(new Set())
+      setSelected((prev) => {
+        const next = new Set(prev)
+        for (const r of filteredRows) next.delete(r.id)
+        return next
+      })
       return
     }
-    setSelected(new Set(rows.map((r) => r.id)))
+    setSelected((prev) => {
+      const next = new Set(prev)
+      for (const r of filteredRows) next.add(r.id)
+      return next
+    })
   }
 
   function toggleOne(id: number) {
@@ -147,11 +168,28 @@ export function ReviewPage() {
         </p>
       </div>
 
+      <label className="block">
+        <span className="sr-only">Search review queue</span>
+        <input
+          className="field"
+          type="search"
+          placeholder="Search merchant, description, or account"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          autoComplete="off"
+        />
+      </label>
+
       <div className="flex flex-wrap items-end justify-between gap-3 card p-4">
         <div>
           <p className="text-xs uppercase tracking-wide text-ink-muted">Remaining</p>
           <p className="mt-1 font-display text-[20px] font-semibold text-ink">
-            {rows.length}
+            {search.trim() ? filteredRows.length : rows.length}
+            {search.trim() && filteredRows.length !== rows.length ? (
+              <span className="ml-1 text-sm font-normal text-ink-muted">
+                of {rows.length}
+              </span>
+            ) : null}
             <span className="ml-2 text-sm font-normal text-ink-muted">
               · {formatAud(totalCents)} absolute
             </span>
@@ -229,7 +267,13 @@ export function ReviewPage() {
         </p>
       )}
 
-      {rows.length > 0 && (
+      {!isLoading && rows.length > 0 && filteredRows.length === 0 && (
+        <p className="card p-4 text-sm text-ink-muted">
+          No matches for “{search.trim()}”.
+        </p>
+      )}
+
+      {filteredRows.length > 0 && (
         <div className="min-h-0 flex-1 overflow-y-auto card">
           <div className="flex items-center gap-2 border-b border-hairline px-3 py-2">
             <label className="flex min-h-11 min-w-11 items-center justify-center">
@@ -237,13 +281,13 @@ export function ReviewPage() {
                 type="checkbox"
                 checked={allSelected}
                 onChange={toggleAll}
-                aria-label="Select all"
+                aria-label="Select all visible"
               />
             </label>
             <p className="text-xs text-ink-muted">Select all visible</p>
           </div>
           <ul>
-            {rows.map((row) => (
+            {filteredRows.map((row) => (
               <li
                 key={row.id}
                 className="flex items-center gap-2 border-b border-hairline px-3 py-2"

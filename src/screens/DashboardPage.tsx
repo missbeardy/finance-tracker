@@ -185,7 +185,10 @@ export function DashboardPage() {
           <div className="rounded-2xl bg-white/15 px-4 py-4 backdrop-blur-md">
             <p className="section-label !text-white/65">Net</p>
             <p
-              className="money mt-2 text-left text-[44px] leading-none text-white"
+              className={[
+                'money mt-2 text-left text-[44px] leading-none',
+                net < 0 ? 'text-signal' : 'text-white',
+              ].join(' ')}
               aria-label={`Net ${formatAud(net)}`}
             >
               {net >= 0 ? `+${formatAud(net)}` : formatAud(net)}
@@ -258,7 +261,7 @@ export function DashboardPage() {
                 className={[
                   'min-h-11 rounded-full px-4 text-sm font-semibold transition-all',
                   flowMode === 'in'
-                    ? 'bg-inbound text-on-accent shadow-[0_0_24px_-4px_rgb(57_255_20_/_0.45)]'
+                    ? 'bg-inbound text-on-accent shadow-[0_0_12px_-4px_rgb(57_255_20_/_0.22)]'
                     : 'text-ink-muted',
                 ].join(' ')}
               >
@@ -323,7 +326,7 @@ export function DashboardPage() {
                               expandedId == null ||
                               expandedId === entry.id ||
                               entry.id === -999
-                                ? `drop-shadow(0 0 6px ${entry.color})`
+                                ? `drop-shadow(0 0 3px ${entry.color})`
                                 : undefined,
                             opacity:
                               expandedId == null ||
@@ -372,7 +375,7 @@ export function DashboardPage() {
                         <span
                           className="emoji-icon"
                           style={{
-                            boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.35), 0 0 16px -4px ${cat.color}`,
+                            boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.35), 0 0 8px -4px ${cat.color}`,
                           }}
                           aria-hidden
                         >
@@ -388,7 +391,7 @@ export function DashboardPage() {
                               style={{
                                 width: `${Math.max(pct > 0 ? 4 : 0, pct)}%`,
                                 background: cat.color,
-                                boxShadow: `0 0 10px ${cat.color}`,
+                                boxShadow: `0 0 5px ${cat.color}`,
                               }}
                             />
                           </span>

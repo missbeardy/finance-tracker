@@ -81,9 +81,10 @@
   /* light: soft drop shadow for depth (no border on cards) */
   --card-shadow: 0 8px 28px -10px rgb(10 10 18 / 0.14);
   --shadow-soft: 0 8px 28px -10px rgb(10 10 18 / 0.14);
-  --glow-flow: 0 0 24px -4px rgb(255 45 149 / 0.45);
-  --glow-cyan: 0 0 28px -4px rgb(0 229 255 / 0.55);
-  --glow-chart: 0 0 32px -6px rgb(255 45 149 / 0.35);
+  /* neon glow at ~50% of original intensity */
+  --glow-flow: 0 0 12px -4px rgb(255 45 149 / 0.22);
+  --glow-cyan: 0 0 14px -4px rgb(0 229 255 / 0.28);
+  --glow-chart: 0 0 16px -6px rgb(255 45 149 / 0.18);
 
   /* light header: magenta → bright orange */
   --header-gradient: linear-gradient(135deg, #ff2d95 0%, #ff4d6d 42%, #ff6b00 100%);
@@ -133,9 +134,9 @@
   /* dark: lifted surface, no heavy shadow */
   --card-shadow: none;
   --shadow-soft: 0 12px 32px -12px rgb(0 0 0 / 0.45);
-  --glow-flow: 0 0 28px -2px rgb(0 229 255 / 0.55);
-  --glow-cyan: 0 0 28px -2px rgb(0 229 255 / 0.6);
-  --glow-chart: 0 0 40px -4px rgb(0 229 255 / 0.4);
+  --glow-flow: 0 0 14px -2px rgb(0 229 255 / 0.28);
+  --glow-cyan: 0 0 14px -2px rgb(0 229 255 / 0.3);
+  --glow-chart: 0 0 20px -4px rgb(0 229 255 / 0.2);
 
   --header-gradient: linear-gradient(160deg, #1a1a2e 0%, #24243e 50%, #1f1f38 100%);
   --page-bg: #1a1a2e;

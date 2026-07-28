@@ -38,6 +38,7 @@ export function CategoryManager() {
   const [mergeTarget, setMergeTarget] = useState('')
   const [busyId, setBusyId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
   const parents = useMemo(
     () =>
@@ -57,6 +58,26 @@ export function CategoryManager() {
     for (const list of map.values()) list.sort((a, b) => a.name.localeCompare(b.name))
     return map
   }, [categories])
+
+  const searchQuery = search.trim().toLowerCase()
+
+  const visibleParents = useMemo(() => {
+    if (!searchQuery) return parents
+    return parents.filter((parent) => {
+      if (parent.name.toLowerCase().includes(searchQuery)) return true
+      return (childrenByParent.get(parent.id) ?? []).some((c) =>
+        c.name.toLowerCase().includes(searchQuery),
+      )
+    })
+  }, [parents, childrenByParent, searchQuery])
+
+  function visibleChildren(parentId: number): CategoryRow[] {
+    const children = childrenByParent.get(parentId) ?? []
+    if (!searchQuery) return children
+    const parent = parents.find((p) => p.id === parentId)
+    if (parent?.name.toLowerCase().includes(searchQuery)) return children
+    return children.filter((c) => c.name.toLowerCase().includes(searchQuery))
+  }
 
   function usageFor(id: number): CategoryUsage {
     return usage?.[String(id)] ?? EMPTY_USAGE
@@ -323,16 +344,34 @@ export function CategoryManager() {
         another group instead.
       </p>
 
-      {parents.map((parent) => {
-        const children = childrenByParent.get(parent.id) ?? []
-        const open = openParentId === parent.id
+      <label className="block">
+        <span className="sr-only">Search categories</span>
+        <input
+          className="field"
+          type="search"
+          placeholder="Search categories"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          autoComplete="off"
+        />
+      </label>
+
+      {visibleParents.length === 0 && (
+        <p className="text-sm text-ink-muted">
+          {searchQuery ? `No categories match “${search.trim()}”.` : 'No categories yet.'}
+        </p>
+      )}
+
+      {visibleParents.map((parent) => {
+        const children = visibleChildren(parent.id)
+        const open = searchQuery ? true : openParentId === parent.id
 
         return (
           <div key={parent.id} className="card">
             <div className="flex items-start gap-2 p-3">
               <button
                 type="button"
-                onClick={() => setOpenParentId(open ? null : parent.id)}
+                onClick={() => setOpenParentId(open && !searchQuery ? null : parent.id)}
                 aria-expanded={open}
                 className="mt-1 flex min-h-11 min-w-11 items-center justify-center text-ink-muted"
                 aria-label={open ? 'Collapse group' : 'Expand group'}
@@ -405,7 +444,9 @@ export function CategoryManager() {
             {open && (
               <ul className="space-y-2 border-t border-hairline p-3">
                 {children.length === 0 && (
-                  <li className="text-xs text-ink-muted">No subcategories in this group.</li>
+                  <li className="text-xs text-ink-muted">
+                    {searchQuery ? 'No matching subcategories.' : 'No subcategories in this group.'}
+                  </li>
                 )}
                 {children.map((cat) => (
                   <li key={cat.id} className="rounded-md bg-paper-deep/40 p-3">

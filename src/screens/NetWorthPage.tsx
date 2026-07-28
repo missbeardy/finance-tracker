@@ -35,7 +35,12 @@ export function NetWorthPage() {
 
       <div className="card p-4">
         <p className="text-xs uppercase tracking-wide text-ink-muted">Net worth</p>
-        <p className="money mt-2 text-[44px] leading-none text-ink">
+        <p
+          className={[
+            'money mt-2 text-[44px] leading-none',
+            netWorthCents != null && netWorthCents < 0 ? 'text-signal' : 'text-ink',
+          ].join(' ')}
+        >
           {netWorthCents == null ? '—' : formatAud(netWorthCents)}
         </p>
         <dl className="mt-4 space-y-2 border-t border-hairline pt-3 text-sm">

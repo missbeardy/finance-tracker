@@ -182,11 +182,11 @@ button,
 }
 
 [data-theme="light"] .header-hero {
-  box-shadow: 0 16px 40px -18px rgb(255 45 149 / 0.55);
+  box-shadow: 0 8px 20px -18px rgb(255 45 149 / 0.28);
 }
 
 .chart-glow {
-  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--neon-cyan) 55%, transparent));
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--neon-cyan) 28%, transparent));
 }
 
 .theme-chip {
