@@ -358,7 +358,8 @@ export function LedgerPage() {
               <div>
                 <h2 className="font-display text-base font-semibold text-ink">Manage categories</h2>
                 <p className="mt-1 text-xs text-ink-muted">
-                  Delete ones you'll never use, or merge one into another to keep its history.
+                  Rename or delete top-level groups you don&apos;t use. Merge ones that still have
+                  history into another group.
                 </p>
               </div>
               <button
