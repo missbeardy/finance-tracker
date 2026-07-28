@@ -58,6 +58,7 @@ export function MorePage() {
         />
         <MoreLink to="/net-worth" label="Net worth" meta="Balances & assets" />
         <MoreLink to="/debt" label="Debt payoff" meta="Loans & cards" />
+        <MoreLink to="/mortgage" label="Mortgage" meta="Balance & amortization" />
         <MoreLink to="/accounts" label="Accounts" meta={`${accounts.length} accounts`} />
         <MoreLink
           to="/transfers"

@@ -324,6 +324,53 @@ export type Database = {
         }
         Relationships: []
       }
+      mortgages: {
+        Row: {
+          account_id: number | null
+          created_at: string
+          id: number
+          interest_rate: number
+          lender: string
+          name: string
+          original_balance: number
+          start_date: string
+          term_years: number
+          user_id: string
+        }
+        Insert: {
+          account_id?: number | null
+          created_at?: string
+          id?: never
+          interest_rate: number
+          lender: string
+          name: string
+          original_balance: number
+          start_date: string
+          term_years: number
+          user_id?: string
+        }
+        Update: {
+          account_id?: number | null
+          created_at?: string
+          id?: never
+          interest_rate?: number
+          lender?: string
+          name?: string
+          original_balance?: number
+          start_date?: string
+          term_years?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mortgages_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string

@@ -12,6 +12,7 @@ import { ImportsPage } from '@/screens/ImportsPage'
 import { InsightsPage } from '@/screens/InsightsPage'
 import { LedgerPage } from '@/screens/LedgerPage'
 import { MorePage } from '@/screens/MorePage'
+import { MortgagePage } from '@/screens/MortgagePage'
 import { NetWorthPage } from '@/screens/NetWorthPage'
 import { DebtPage } from '@/screens/DebtPage'
 import { ReviewPage } from '@/screens/ReviewPage'
@@ -59,6 +60,7 @@ export function App() {
         <Route path="review" element={<ReviewPage />} />
         <Route path="net-worth" element={<NetWorthPage />} />
         <Route path="debt" element={<DebtPage />} />
+        <Route path="mortgage" element={<MortgagePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

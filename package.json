@@ -16,7 +16,8 @@
     "test:csv": "tsx scripts/test-csv-mapping.ts",
     "test:ledger": "tsx scripts/test-ledger.ts",
     "test:budget": "tsx scripts/test-budget.ts",
-    "test": "npm run test:csv && npm run test:ledger && npm run test:budget"
+    "test:mortgage": "tsx scripts/test-mortgage.ts",
+    "test": "npm run test:csv && npm run test:ledger && npm run test:budget && npm run test:mortgage"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.2.8",
