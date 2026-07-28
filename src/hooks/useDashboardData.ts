@@ -47,6 +47,20 @@ function isSpending(txn: DashTxn) {
   return true
 }
 
+/** Cash taken out of the account to spend — never income, always money out. */
+export function isCashWithdrawal(txn: DashTxn): boolean {
+  return txn.categories?.name === 'Cash Withdrawal' || txn.categories?.is_opaque === true
+}
+
+/**
+ * Signed amount for cashflow views. Cash withdrawals are forced negative
+ * even if a bank feed stored them as positive.
+ */
+export function flowAmount(txn: DashTxn): number {
+  if (isCashWithdrawal(txn)) return -Math.abs(txn.amount)
+  return txn.amount
+}
+
 function catColor(token: string | null | undefined): string {
   if (token && token in COLOR_TOKEN_HEX) {
     return COLOR_TOKEN_HEX[token as ColorToken]
@@ -101,14 +115,17 @@ export function useDashboardData(range: DateRange) {
     let inbound = 0
     let outbound = 0
     for (const t of live) {
-      if (t.amount > 0) inbound += t.amount
-      else outbound += Math.abs(t.amount)
+      const amount = flowAmount(t)
+      if (amount > 0) inbound += amount
+      else outbound += Math.abs(amount)
     }
     const net = inbound - outbound
 
     const byCat = new Map<number, CategoryTotal>()
+    const byIncomeCat = new Map<number, CategoryTotal>()
     for (const t of live) {
-      if (t.amount >= 0) continue
+      const amount = flowAmount(t)
+      if (amount >= 0) continue
       const id = t.category_id ?? -1
       const name = t.categories?.name ?? 'Uncategorised'
       const color = catColor(t.categories?.color_token)
@@ -120,14 +137,32 @@ export function useDashboardData(range: DateRange) {
         prevCents: 0,
         deltaPct: null,
       }
-      row.cents += Math.abs(t.amount)
+      row.cents += Math.abs(amount)
       byCat.set(id, row)
     }
+    for (const t of live) {
+      const amount = flowAmount(t)
+      if (amount <= 0) continue
+      const id = t.category_id ?? -1
+      const name = t.categories?.name ?? 'Uncategorised'
+      const color = catColor(t.categories?.color_token)
+      const row = byIncomeCat.get(id) ?? {
+        id,
+        name,
+        color,
+        cents: 0,
+        prevCents: 0,
+        deltaPct: null,
+      }
+      row.cents += amount
+      byIncomeCat.set(id, row)
+    }
     for (const t of previous.filter(isSpending)) {
-      if (t.amount >= 0) continue
+      const amount = flowAmount(t)
+      if (amount >= 0) continue
       const id = t.category_id ?? -1
       const row = byCat.get(id)
-      if (row) row.prevCents += Math.abs(t.amount)
+      if (row) row.prevCents += Math.abs(amount)
     }
     for (const row of byCat.values()) {
       if (row.prevCents > 0) {
@@ -139,6 +174,9 @@ export function useDashboardData(range: DateRange) {
       .sort((a, b) => b.cents - a.cents)
       .slice(0, 5)
 
+    const spendByCategory = [...byCat.values()].sort((a, b) => b.cents - a.cents)
+    const incomeByCategory = [...byIncomeCat.values()].sort((a, b) => b.cents - a.cents)
+
     const sankey = buildSankeyLinks(live)
     const netSeries = buildNetSeries(live, range)
 
@@ -146,8 +184,10 @@ export function useDashboardData(range: DateRange) {
       inbound,
       outbound,
       net,
-      discretionary: net, // Phase 6 will subtract commitments + savings target
+      discretionary: net,
       topCategories,
+      spendByCategory,
+      incomeByCategory,
       sankey,
       netSeries,
     }
@@ -231,15 +271,16 @@ function buildSankeyLinks(txns: DashTxn[]): SankeyLink[] {
     }
     if (t.status === 'excluded') continue
 
-    if (t.amount > 0) {
+    const amount = flowAmount(t)
+    if (amount > 0) {
       const source =
         t.categories?.kind === 'income'
           ? t.categories.name
           : t.merchant || 'Income'
-      add(`in:${source}`, account, t.amount, 'income')
+      add(`in:${source}`, account, amount, 'income')
     } else {
       const cat = t.categories?.name ?? 'Uncategorised'
-      add(account, `out:${cat}`, Math.abs(t.amount), 'spend')
+      add(account, `out:${cat}`, Math.abs(amount), 'spend')
     }
   }
 
@@ -257,7 +298,7 @@ function buildNetSeries(txns: DashTxn[], range: DateRange) {
   const points: { date: string; net: number }[] = []
   for (const day of [...byDay.keys()].sort()) {
     const dayTxns = txns.filter((t) => t.date === day && isSpending(t))
-    for (const t of dayTxns) running += t.amount
+    for (const t of dayTxns) running += flowAmount(t)
     points.push({ date: day, net: running })
   }
   return points

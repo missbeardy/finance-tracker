@@ -13,7 +13,7 @@ export function QueryError({ message, onRetry }: Props) {
       <button
         type="button"
         onClick={onRetry}
-        className="min-h-11 rounded-xl bg-flow px-4 text-sm font-semibold text-white"
+        className="min-h-11 rounded-xl bg-flow px-4 text-sm font-semibold text-on-accent"
       >
         Retry
       </button>

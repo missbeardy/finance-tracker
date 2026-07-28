@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { formatAud, parseDollarsToCents } from '@/lib/money'
 import { paceDaysDelta } from '@/lib/budget/calc'
 import { paceLabel } from '@/lib/budget/paceLabel'
+import { categoryEmoji } from '@/lib/categoryEmoji'
 
 export type MicroCategoryLine = {
   id: number
@@ -57,14 +58,20 @@ export function CategoryGroupCard({
   const pace = paceDaysDelta({ allocationCents: allocatedCents, spentCents, periodStart, periodEnd, today })
 
   return (
-    <div className="rounded-lg border border-hairline bg-surface">
+    <div className="card overflow-hidden">
       <button
         type="button"
         onClick={() => setExpanded((e) => !e)}
         aria-expanded={expanded}
         className="flex w-full items-center gap-3 p-4 text-left"
       >
-        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
+        <span
+          className="emoji-icon !h-9 !w-9 !text-[16px]"
+          style={{ boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.35), 0 0 14px -4px ${color}` }}
+          aria-hidden
+        >
+          {categoryEmoji(label)}
+        </span>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
@@ -78,7 +85,11 @@ export function CategoryGroupCard({
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-paper-deep">
             <div
               className="h-full rounded-full transition-[width] duration-300"
-              style={{ width: `${Math.max(pct > 0 ? 4 : 0, pct)}%`, background: over ? 'var(--signal)' : color }}
+              style={{
+                width: `${Math.max(pct > 0 ? 4 : 0, pct)}%`,
+                background: over ? 'var(--signal)' : color,
+                boxShadow: over ? '0 0 10px var(--signal)' : `0 0 10px ${color}`,
+              }}
             />
           </div>
           {pace != null && allocatedCents > 0 && (

@@ -255,7 +255,7 @@ export function CategoryManager() {
               onClick={() =>
                 void (kind === 'group' ? handleMergeGroup(cat) : handleMergeLeaf(cat))
               }
-              className="min-h-11 rounded-xl bg-flow px-3 text-sm font-semibold text-white disabled:opacity-50"
+              className="min-h-11 rounded-xl bg-flow px-3 text-sm font-semibold text-on-accent disabled:opacity-50"
             >
               Confirm
             </button>
@@ -328,7 +328,7 @@ export function CategoryManager() {
         const open = openParentId === parent.id
 
         return (
-          <div key={parent.id} className="rounded-lg border border-hairline bg-surface">
+          <div key={parent.id} className="card">
             <div className="flex items-start gap-2 p-3">
               <button
                 type="button"
@@ -372,7 +372,7 @@ export function CategoryManager() {
                         type="button"
                         disabled={busyId === parent.id || !renameValue.trim()}
                         onClick={() => void saveRename(parent)}
-                        className="min-h-11 rounded-xl bg-flow px-3 text-sm font-semibold text-white disabled:opacity-50"
+                        className="min-h-11 rounded-xl bg-flow px-3 text-sm font-semibold text-on-accent disabled:opacity-50"
                       >
                         Save
                       </button>
@@ -426,7 +426,7 @@ export function CategoryManager() {
                             type="button"
                             disabled={busyId === cat.id || !renameValue.trim()}
                             onClick={() => void saveRename(cat)}
-                            className="min-h-11 rounded-xl bg-flow px-3 text-sm font-semibold text-white disabled:opacity-50"
+                            className="min-h-11 rounded-xl bg-flow px-3 text-sm font-semibold text-on-accent disabled:opacity-50"
                           >
                             Save
                           </button>

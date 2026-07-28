@@ -4,15 +4,15 @@ import { subscribeToasts, type ToastPayload, type ToastTone } from '@/lib/toastB
 const TONE_STYLE: Record<ToastTone, CSSProperties> = {
   error: {
     background: 'var(--signal)',
-    color: 'var(--surface)',
+    color: '#FFFFFF',
   },
   success: {
     background: 'var(--inbound)',
-    color: 'var(--surface)',
+    color: '#0A0A12',
   },
   info: {
     background: 'var(--ink)',
-    color: 'var(--surface)',
+    color: 'var(--paper)',
   },
 }
 

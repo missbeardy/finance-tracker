@@ -1,174 +1,75 @@
 ---
-description: Visual system for the finance tracker. Tokens, typography, component anatomy, chart styling, and the anti-patterns that make an app look generic.
+description: Visual system for the finance tracker. Tokens, typography, component anatomy, chart styling.
 globs: ["src/**/*.tsx", "src/**/*.ts", "src/**/*.css"]
 alwaysApply: false
 ---
 
 # Visual system
 
-## Why the app currently looks generic
-
-If a screen has any of the following, it is wrong. These are the specific things that make AI-built UIs look templated:
-
-1. A card with `border` **and** `shadow-md` **and** `rounded-lg`. Three separation methods fighting.
-2. Body text, labels, and headings all within 2px of each other. No hierarchy.
-3. Default Tailwind `gray-*` / `slate-*`. It reads as unstyled.
-4. Every element with the same padding. No density contrast between a dashboard and a table.
-5. Money rendered in the body font at body size, left-aligned, in a proportional typeface.
-6. Recharts left at defaults: cartesian grid, legend, tooltip box, `#8884d8`.
-7. A gradient anywhere.
-8. Three equal stat cards in a row across the top.
-
-Fixing 1, 2, 5 and 6 accounts for most of the improvement.
-
----
+Neon ledger — fun, high-contrast, card-based. Away from monochrome purple SaaS.
 
 ## Tokens
 
-Create `src/styles/tokens.css` and import once in `main.tsx`. Every colour reference in the app is a `var()`.
+Source of truth: `src/styles/tokens.css`, imported via `src/index.css`.
 
-```css
-:root {
-  color-scheme: light;
+| Mode | Ground | Accents |
+|---|---|---|
+| Light | Stark white `--paper`, magenta→orange `--header-gradient` on heroes | Hot pink `--flow`, neon category ramp |
+| Dark | Deep navy `#1A1A2E`, lifted `--surface-elevated` cards | Electric cyan `--flow`, glowing charts |
 
-  /* ground */
-  --paper:      #EEF1F4;
-  --surface:    #FFFFFF;
-  --surface-2:  #F7F9FB;
-  --ink:        #14161C;
-  --ink-muted:  #5C6470;
-  --ink-faint:  #8A9099;
-  --hairline:   #D5DBE2;
-  --hairline-strong: #B9C2CC;
-
-  /* semantic */
-  --flow:       #2F6F6B;
-  --flow-weak:  #DCE9E8;
-  --inbound:    #3A7D5C;
-  --outbound:   #8E4A34;
-  --signal:     #A33049;
-  --signal-weak:#F5DEE3;
-  --caution:    #B0842A;
-  --neutral:    #7A7F87;
-
-  /* category ramp - mineral, deliberately not a rainbow */
-  --cat-1: #A9694F; --cat-2: #6B7F4E; --cat-3: #4A6A8A; --cat-4: #6E4A63;
-  --cat-5: #B0842A; --cat-6: #2F6F6B; --cat-7: #8E4A34; --cat-8: #7A7F87;
-
-  /* type scale - the only sizes permitted */
-  --t-micro: 12px; --t-small: 14px; --t-body: 16px;
-  --t-lead: 20px;  --t-sub: 28px;   --t-figure: 44px; --t-hero: 64px;
-
-  /* spacing - the only values permitted */
-  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px;
-  --s-6: 24px; --s-8: 32px; --s-12: 48px;
-
-  --r-sm: 4px; --r-md: 8px; --r-lg: 14px; --r-full: 999px;
-
-  /* one shadow, used sparingly, for floating surfaces only */
-  --lift: 0 8px 24px -8px rgb(20 22 28 / 0.18);
-}
-
-[data-theme="dark"] {
-  color-scheme: dark;
-  --paper: #101317; --surface: #171B21; --surface-2: #1E232A;
-  --ink: #E8ECF1; --ink-muted: #98A1AC; --ink-faint: #6B747E;
-  --hairline: #2A3138; --hairline-strong: #3A424B;
-  --flow-weak: #1C2E2D; --signal-weak: #2E1A20;
-  /* category ramp lifted ~10% lightness */
-  --cat-1: #C4826A; --cat-2: #869C66; --cat-3: #6688A8; --cat-4: #8B6480;
-  --cat-5: #CBA047; --cat-6: #479E99; --cat-7: #AB6349; --cat-8: #969BA3;
-}
-```
-
-Wire into Tailwind v4 with `@theme` so `bg-surface`, `text-ink-muted`, `p-4` map to these and nothing else is reachable.
-
----
+Wire into Tailwind v4 `@theme` so `bg-surface`, `text-ink-muted`, `bg-flow`, `text-on-accent` map to tokens.
 
 ## Typography
 
-Self-host via `@fontsource-variable`. Three faces, three jobs.
-
-| Role | Face | Settings |
-|---|---|---|
-| Money figures, page headers | Bricolage Grotesque Variable | `wght` 600, tighten `letter-spacing: -0.02em` at 44px+ |
-| UI, body, labels | Inter Tight Variable | `font-feature-settings: 'tnum' 1, 'cv05' 1` |
-| Ledger rows, tables, data | DM Mono | 400/500 only |
+| Role | Face |
+|---|---|
+| Money figures, page headers | Bricolage Grotesque Variable, weight 700, `letter-spacing: -0.02em` at 44px+ |
+| UI, body, labels | Inter Tight |
+| Ledger rows, tables | DM Mono |
 
 Rules:
 
-- **Money is the display type.** A dashboard balance is `--t-figure` or `--t-hero`, weight 600, tabular. Its label sits above it at `--t-micro`, uppercase, `letter-spacing: 0.08em`, `--ink-faint`. That label/figure pair is the app's core unit.
-- Ledger amounts use DM Mono at `--t-small`, right-aligned. The decimal point aligns down the column. This is functional, not decorative.
-- Negative amounts render in `--ink`, not red. Reserve `--signal` for budget breaches and errors only, or the ledger screams at the user permanently.
-- Positive amounts in a mixed column get a leading `+` and `--inbound`. Nothing else.
-- Line height: 1.2 for figures, 1.5 for body, 1.35 for dense table rows.
-- Never centre body text. Never justify.
-
----
+- **Money is the display type.** Dashboard net uses `--t-figure` (44px) or larger, stark white on the gradient header (light) / white on navy (dark).
+- Label above figure: `--t-micro`, uppercase, tracked, muted.
+- Negative amounts in ledger stay `--ink` unless breached (`--signal`).
+- Positive amounts in mixed columns: leading `+` and `--inbound`.
 
 ## Component anatomy
 
-### Surface
-One rule: `background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-lg);` and **no shadow**. Shadows are reserved for things that genuinely float: bottom sheets, popovers, the sticky action bar. Nothing else in the app casts a shadow.
-
-### Figure block
+### Card (`.card`)
 ```
-LABEL          <- --t-micro, uppercase, tracked, --ink-faint
-$4,182.55      <- --t-figure, Bricolage 600, tabular
-↓ 12% vs May   <- --t-small, --ink-muted, arrow glyph carries the direction
+border-radius: var(--r-xl);
+background: var(--surface);
+box-shadow: var(--card-shadow); /* light only */
 ```
-Never wrap a figure block in its own card when three of them sit together. Separate with hairline dividers instead. Three bordered cards in a row is the single most recognisable generic-dashboard tell.
+Dark mode: elevated surface, no shadow. One separation method.
 
-### Ledger row (the most-used component in the app)
-```
-[cat dot]  Merchant name                      −42.50
-           Account · 14 Jun                   [category chip]
-```
-- 2 lines, 64px tall, full-bleed to the screen edge on mobile
-- Category is a 8px dot in the category colour, not a coloured badge on every row
-- Row separator is a hairline inset to the text start, not full width
-- Date headers are sticky, `--surface-2` background, `--t-micro` uppercase
-- Tap opens detail. Swipe left reveals Recategorise. Swipe right reveals Mark as transfer
+### Figure / hero
+Light: full-bleed `header-hero` with gradient. Dark: same class, deep navy wash.
+Primary number is massive and high-contrast.
 
-### Category chip
-Text at `--t-micro` in the category colour on a 12% tint of the same colour. No border. `--r-full`.
+### Buttons
+Primary: `.btn-primary` or `bg-flow text-on-accent` + optional `--glow-flow`.
+Never hardcode `text-white` on accent fills — contrast flips between themes.
 
-### Empty and loading states
-- Loading: skeleton rows matching the real layout. Never a centred spinner.
-- Empty: one line of instruction plus the action. "No transactions yet. Import a CSV to get started." with the button directly beneath.
-- Error: what broke and what to do. "Row 42 has no date. Check the date column mapping." Never "Something went wrong."
+### Category row
+Glossy emoji icon (`.emoji-icon`) + name + neon progress bar + tabular amount.
 
----
+### Charts
+Neon fills from category tokens. Soft glow (`chart-glow` / per-slice drop-shadow) is allowed.
+Custom tooltip matching `.card`. No default Recharts chrome.
 
-## Charts
+## Theme
 
-Recharts, stripped to the bone.
+- `ThemeProvider` + `initTheme()` + inline `index.html` script prevent flash.
+- Persist in `localStorage` key `finance-theme`.
+- Toggle lives in AppShell chip, More, Settings, Auth.
 
-- No `CartesianGrid` except a single horizontal `--hairline` line at zero
-- No `Legend` component. Label series directly on or beside the data
-- Custom `Tooltip` only, matching the surface style. Never the default box
-- Axis ticks: `--t-micro`, `--ink-faint`, no axis lines
-- Bars: `--r-sm` radius on the top corners only, category colour, no gradient
-- Currency axis labels abbreviate: `$1.2k`, not `$1,200.00`
-- Every chart has a one-line plain-English caption beneath it
+## Self-check
 
-### The Sankey
-This is the one place to spend visual effort, and it is the one thing that does not fit a phone screen in its normal form.
-
-- **Portrait phone:** do not render the horizontal Sankey. Render a stacked flow list: income total at top, then account nodes, then category bands sized proportionally, each row tappable. Offer a "View full flow" button that opens a full-screen, landscape-locked, pinch-zoomable Sankey.
-- **Tablet and desktop:** full horizontal Sankey. Income left, accounts centre, categories right. Internal transfers as a visually distinct returning ribbon in `--neutral` at 40% opacity so they read as noise, not spend.
-- Ribbons draw in on first paint, staggered, 600ms total. This is the only orchestrated animation in the app. Everything else is a 120ms state change.
-- Respect `prefers-reduced-motion: reduce` by rendering the final state immediately.
-
----
-
-## Self-check before finishing a screen
-
-Answer these honestly. If any answer is no, fix it before moving on.
-
-1. Is there exactly one element on this screen that is obviously the most important?
-2. Does every colour on screen encode a category or a state?
-3. Could you delete any border, shadow, or divider and lose nothing?
-4. Do all the numbers align on the decimal?
-5. Does it work at 380px wide without horizontal scroll?
-6. Are all interactive targets at least 44px?
+1. Is the key number the loudest thing on the screen?
+2. Do neon accents encode category/state (or primary action), not decoration-for-its-own-sake beyond the approved playful system?
+3. Does light use shadow-or-gradient and dark use lifted surfaces correctly?
+4. Does it work at 380px without horizontal scroll?
+5. Are interactive targets ≥ 44px?
+6. Does theme switch update the whole app via tokens?

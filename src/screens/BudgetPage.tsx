@@ -233,7 +233,7 @@ export function BudgetPage() {
       )}
 
       {/* Sustainable budget — coaching first when short */}
-      <div className="rounded-lg border border-hairline bg-surface p-4">
+      <div className="card p-4">
         {structuralDeficit ? (
           <>
             <p className="text-xs uppercase tracking-wide text-ink-muted">What the numbers say</p>
@@ -248,7 +248,7 @@ export function BudgetPage() {
             <div className="mt-4 flex flex-wrap gap-2">
               <Link
                 to="/commitments"
-                className="inline-flex min-h-11 items-center rounded-xl bg-flow px-4 text-sm font-semibold text-white"
+                className="inline-flex min-h-11 items-center rounded-xl bg-flow px-4 text-sm font-semibold text-on-accent"
               >
                 Review commitments
               </Link>
@@ -298,7 +298,7 @@ export function BudgetPage() {
       </div>
 
       {!structuralDeficit && macroBuckets.length > 0 && (
-        <div className="rounded-lg border border-hairline bg-surface p-4">
+        <div className="card p-4">
           <h2 className="text-xs font-medium uppercase tracking-wide text-ink-muted">
             Allocation snapshot
           </h2>
@@ -333,7 +333,7 @@ export function BudgetPage() {
 
       <Link
         to="/commitments"
-        className="flex items-center justify-between gap-3 rounded-lg border border-hairline bg-surface p-4"
+        className="flex items-center justify-between gap-3 card p-4"
       >
         <div>
           <p className="text-sm font-semibold text-ink">Commitments</p>
@@ -424,7 +424,7 @@ function PeriodButton({
       aria-pressed={active}
       className={[
         'min-h-9 rounded-full px-4 text-xs font-semibold transition-colors duration-120',
-        active ? 'bg-flow text-white' : 'text-ink-muted',
+        active ? 'bg-flow text-on-accent' : 'text-ink-muted',
       ].join(' ')}
     >
       {children}

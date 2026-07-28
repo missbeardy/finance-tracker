@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react'
+﻿import { useState, type FormEvent } from 'react'
 import { useAuth } from '@/lib/auth'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 type Mode = 'signin' | 'signup'
 
@@ -37,24 +38,30 @@ export function AuthPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center px-4 py-10">
-      <header className="mb-10">
-        <p className="font-display text-4xl font-semibold tracking-tight text-ink">
-          Randall Finance Tracker
+    <div className="relative mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center px-4 py-10">
+      <div className="absolute right-4 top-4" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="theme-chip rounded-2xl">
+          <ThemeToggle />
+        </div>
+      </div>
+
+      <header className="header-hero mb-8 overflow-hidden rounded-[24px] px-5 py-8">
+        <p className="font-display text-[28px] font-semibold tracking-tight text-white sm:text-[44px]">
+          Randall Finance
         </p>
-        <p className="mt-2 text-sm text-ink-muted">
+        <p className="mt-2 text-sm text-white/80">
           Sign in to your ledger. Transfers stay out of spending maths.
         </p>
       </header>
 
       {!configured && (
-        <div className="mb-6 rounded-md border border-caution/40 bg-surface px-3 py-3 text-sm text-ink">
+        <div className="card mb-6 px-4 py-3 text-sm text-ink">
           Supabase keys are missing. Copy <span className="ledger-mono">.env.example</span> to{' '}
           <span className="ledger-mono">.env.local</span> and add your project URL and anon key.
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-lg bg-surface p-5 shadow-sm">
+      <form onSubmit={handleSubmit} className="card space-y-4 p-5">
         <div>
           <label htmlFor="email" className="mb-1 block text-xs font-medium text-ink-muted">
             Email
@@ -66,7 +73,7 @@ export function AuthPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border border-hairline bg-paper px-3 py-2.5 text-ink outline-none focus:border-flow"
+            className="field"
           />
         </div>
 
@@ -82,7 +89,7 @@ export function AuthPage() {
             minLength={6}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md border border-hairline bg-paper px-3 py-2.5 text-ink outline-none focus:border-flow"
+            className="field"
           />
         </div>
 
@@ -97,11 +104,7 @@ export function AuthPage() {
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded-md bg-flow px-4 py-2.5 text-sm font-medium text-white transition-opacity duration-120 disabled:opacity-60"
-        >
+        <button type="submit" disabled={submitting} className="btn-primary w-full">
           {submitting ? 'Working…' : mode === 'signin' ? 'Sign in' : 'Create account'}
         </button>
       </form>

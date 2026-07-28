@@ -215,7 +215,7 @@ export function LedgerPage() {
         </p>
       )}
 
-      <div ref={parentRef} className="min-h-0 flex-1 overflow-y-auto rounded-lg bg-surface">
+      <div ref={parentRef} className="min-h-0 flex-1 overflow-y-auto card">
         <div
           style={{ height: virtualizer.getTotalSize(), position: 'relative', width: '100%' }}
         >
@@ -292,7 +292,7 @@ export function LedgerPage() {
           onClick={() => setAddCategoryOpen(false)}
         >
           <div
-            className="w-full max-w-sm rounded-lg bg-surface p-4 shadow-soft"
+            className="w-full max-w-sm card p-4 shadow-soft"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="font-display text-base font-semibold text-ink">New category</h2>
@@ -335,7 +335,7 @@ export function LedgerPage() {
               <button
                 type="button"
                 disabled={createCategory.isPending || !newCategoryName.trim()}
-                className="rounded-md bg-flow px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                className="rounded-md bg-flow px-3 py-1.5 text-xs font-medium text-on-accent disabled:opacity-50"
                 onClick={() => void handleCreateCategory()}
               >
                 {createCategory.isPending ? 'Adding…' : 'Add category'}
@@ -351,7 +351,7 @@ export function LedgerPage() {
           onClick={() => setManageCategoriesOpen(false)}
         >
           <div
-            className="max-h-[80vh] w-full max-w-sm overflow-y-auto rounded-lg bg-surface p-4 shadow-soft"
+            className="max-h-[80vh] w-full max-w-sm overflow-y-auto card p-4 shadow-soft"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
@@ -384,7 +384,7 @@ export function LedgerPage() {
           onClick={() => setDetailRowId(null)}
         >
           <div
-            className="w-full max-w-sm rounded-lg bg-surface p-4 shadow-soft"
+            className="w-full max-w-sm card p-4 shadow-soft"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
@@ -462,7 +462,7 @@ export function LedgerPage() {
               )}
               <button
                 type="button"
-                className="rounded-md bg-flow px-3 py-1.5 text-xs font-medium text-white"
+                className="rounded-md bg-flow px-3 py-1.5 text-xs font-medium text-on-accent"
                 onClick={() => setDetailRowId(null)}
               >
                 Close

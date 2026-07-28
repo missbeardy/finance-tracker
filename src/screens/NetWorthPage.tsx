@@ -33,7 +33,7 @@ export function NetWorthPage() {
         <QueryError message={getErrorMessage(error)} onRetry={() => void refetch()} />
       )}
 
-      <div className="rounded-lg border border-hairline bg-surface p-4">
+      <div className="card p-4">
         <p className="text-xs uppercase tracking-wide text-ink-muted">Net worth</p>
         <p className="money mt-2 text-[44px] leading-none text-ink">
           {netWorthCents == null ? '—' : formatAud(netWorthCents)}
@@ -77,7 +77,7 @@ function BalanceGroup({
       <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-muted">{title}</h2>
       <ul className="space-y-2">
         {rows.map((row) => (
-          <li key={row.accountId} className="flex items-center gap-3 rounded-lg bg-surface p-4">
+          <li key={row.accountId} className="flex items-center gap-3 card p-4">
             <span
               className="h-3 w-3 shrink-0 rounded-sm"
               style={{

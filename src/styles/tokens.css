@@ -1,0 +1,142 @@
+/**
+ * Neon ledger — vibrant light/dark design system.
+ * Light: stark white + magenta→orange header gradient.
+ * Dark: deep navy (#1A1A2E) with lifted cards + neon accents.
+ */
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  /* ground */
+  --paper: #ffffff;
+  --paper-deep: #f4f4f8;
+  --surface: #ffffff;
+  --surface-2: #f7f7fb;
+  --surface-elevated: #ffffff;
+  --ink: #0a0a12;
+  --ink-muted: #5c5c72;
+  --ink-faint: #8a8aa0;
+  --hairline: #e8e8f0;
+  --hairline-strong: #d0d0dc;
+  --on-accent: #ffffff;
+  --on-header: #ffffff;
+
+  /* semantic — neon */
+  --flow: #ff2d95;
+  --flow-soft: #ff6bb5;
+  --flow-weak: #ffe0ef;
+  --inbound: #22c55e;
+  --outbound: #ff2d95;
+  --signal: #ff1f5a;
+  --signal-weak: #ffe0e8;
+  --caution: #facc15;
+  --neutral: #8a8aa0;
+  --neon-cyan: #00e5ff;
+  --neon-pink: #ff2d95;
+  --neon-yellow: #facc15;
+  --neon-green: #39ff14;
+  --neon-orange: #ff6b00;
+
+  /* category ramp — electric, high chroma */
+  --cat-1: #00e5ff;
+  --cat-2: #ff2d95;
+  --cat-3: #facc15;
+  --cat-4: #39ff14;
+  --cat-5: #ff6b00;
+  --cat-6: #38bdf8;
+  --cat-7: #f472b6;
+  --cat-8: #94a3b8;
+
+  /* type scale */
+  --t-micro: 12px;
+  --t-small: 14px;
+  --t-body: 16px;
+  --t-lead: 20px;
+  --t-sub: 28px;
+  --t-figure: 44px;
+  --t-hero: 64px;
+
+  /* spacing */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-12: 48px;
+
+  /* radii — generous cards */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-2xl: 24px;
+  --r-full: 999px;
+
+  --font-display: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', sans-serif;
+  --font-body: 'Inter Tight', sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, monospace;
+
+  /* light: soft drop shadow for depth (no border on cards) */
+  --card-shadow: 0 8px 28px -10px rgb(10 10 18 / 0.14);
+  --shadow-soft: 0 8px 28px -10px rgb(10 10 18 / 0.14);
+  --glow-flow: 0 0 24px -4px rgb(255 45 149 / 0.45);
+  --glow-cyan: 0 0 28px -4px rgb(0 229 255 / 0.55);
+  --glow-chart: 0 0 32px -6px rgb(255 45 149 / 0.35);
+
+  /* light header: magenta → bright orange */
+  --header-gradient: linear-gradient(135deg, #ff2d95 0%, #ff4d6d 42%, #ff6b00 100%);
+  --page-bg: #ffffff;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --paper: #1a1a2e;
+  --paper-deep: #12122a;
+  --surface: #24243e;
+  --surface-2: #2c2c4a;
+  --surface-elevated: #2e2e4c;
+  --ink: #ffffff;
+  --ink-muted: #a8a8c0;
+  --ink-faint: #787890;
+  --hairline: #343450;
+  --hairline-strong: #464668;
+  --on-accent: #0a0a12;
+  --on-header: #ffffff;
+
+  --flow: #00e5ff;
+  --flow-soft: #5ef0ff;
+  --flow-weak: #0a3a44;
+  --inbound: #39ff14;
+  --outbound: #ff2d95;
+  --signal: #ff4d6d;
+  --signal-weak: #3a1520;
+  --caution: #facc15;
+  --neutral: #8a8aa0;
+  --neon-cyan: #00e5ff;
+  --neon-pink: #ff2d95;
+  --neon-yellow: #facc15;
+  --neon-green: #39ff14;
+  --neon-orange: #ff8a1f;
+
+  --cat-1: #00e5ff;
+  --cat-2: #ff2d95;
+  --cat-3: #facc15;
+  --cat-4: #39ff14;
+  --cat-5: #ff8a1f;
+  --cat-6: #38bdf8;
+  --cat-7: #f472b6;
+  --cat-8: #94a3b8;
+
+  /* dark: lifted surface, no heavy shadow */
+  --card-shadow: none;
+  --shadow-soft: 0 12px 32px -12px rgb(0 0 0 / 0.45);
+  --glow-flow: 0 0 28px -2px rgb(0 229 255 / 0.55);
+  --glow-cyan: 0 0 28px -2px rgb(0 229 255 / 0.6);
+  --glow-chart: 0 0 40px -4px rgb(0 229 255 / 0.4);
+
+  --header-gradient: linear-gradient(160deg, #1a1a2e 0%, #24243e 50%, #1f1f38 100%);
+  --page-bg: #1a1a2e;
+}

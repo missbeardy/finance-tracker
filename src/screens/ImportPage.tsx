@@ -450,7 +450,7 @@ export function ImportPage() {
               : ' · single-account file'}
           </p>
 
-          <div className="space-y-2 rounded-lg bg-surface p-4">
+          <div className="space-y-2 card p-4">
             <h2 className="text-sm font-medium text-ink">Column mapping</h2>
             {headers.map((header) => (
               <div key={header} className="grid grid-cols-[1fr_1fr] items-center gap-2">
@@ -473,7 +473,7 @@ export function ImportPage() {
           </div>
 
           {multiAccount ? (
-            <div className="space-y-3 rounded-lg bg-surface p-4">
+            <div className="space-y-3 card p-4">
               <h2 className="text-sm font-medium text-ink">Map accounts in this file</h2>
               <p className="text-xs text-ink-muted">
                 Each distinct Account value is matched to one of your ledger accounts.
@@ -561,7 +561,7 @@ export function ImportPage() {
                         <button
                           type="button"
                           disabled={creating}
-                          className="rounded-md bg-flow px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+                          className="rounded-md bg-flow px-3 py-1.5 text-xs font-medium text-on-accent disabled:opacity-60"
                           onClick={() => void confirmCreateAccount()}
                         >
                           {creating ? 'Creating…' : 'Create account'}
@@ -615,7 +615,7 @@ export function ImportPage() {
             </select>
           </label>
 
-          <div className="overflow-x-auto rounded-lg bg-surface p-3">
+          <div className="overflow-x-auto card p-3">
             <p className="mb-2 text-xs font-medium text-ink-muted">Live preview</p>
             <table className="w-full min-w-[32rem] text-left text-xs">
               <thead>
@@ -641,7 +641,7 @@ export function ImportPage() {
             </table>
           </div>
 
-          <div className="rounded-lg border border-hairline bg-surface p-4 text-sm text-ink">
+          <div className="card p-4 text-sm text-ink">
             <p>
               {normalised.out.length} rows ready · {merchants} merchants
               {multiAccount ? ` · ${accountsUsed} accounts` : ''}
@@ -654,7 +654,7 @@ export function ImportPage() {
             <button
               type="button"
               disabled={!canCommit || commitImportMutation.isPending || !navigator.onLine}
-              className="mt-3 rounded-md bg-flow px-3 py-2 text-sm font-medium text-white disabled:opacity-40"
+              className="mt-3 rounded-md bg-flow px-3 py-2 text-sm font-medium text-on-accent disabled:opacity-40"
               onClick={() => void handleCommit()}
             >
               {commitImportMutation.isPending
@@ -674,12 +674,12 @@ export function ImportPage() {
       )}
 
       {step === 'done' && (
-        <div className="space-y-4 rounded-lg bg-surface p-4">
+        <div className="space-y-4 card p-4">
           <p className="text-sm text-inbound">{resultSummary}</p>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded-md bg-flow px-3 py-2 text-sm font-medium text-white"
+              className="rounded-md bg-flow px-3 py-2 text-sm font-medium text-on-accent"
               onClick={() => navigate('/ledger')}
             >
               Open ledger

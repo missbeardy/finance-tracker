@@ -54,7 +54,7 @@ export function DebtPage() {
         <QueryError message={getErrorMessage(error)} onRetry={() => void refetch()} />
       )}
 
-      <div className="rounded-lg border border-hairline bg-surface p-4">
+      <div className="card p-4">
         <p className="text-xs uppercase tracking-wide text-ink-muted">Total owed</p>
         <p className="money mt-2 text-[28px] text-ink">{formatAud(totalOwed)}</p>
         <p className="mt-2 text-sm text-ink-muted">
@@ -65,13 +65,13 @@ export function DebtPage() {
       </div>
 
       {debts.length === 0 ? (
-        <p className="rounded-lg bg-surface p-4 text-sm text-ink-muted">
+        <p className="card p-4 text-sm text-ink-muted">
           No loan or credit-card accounts yet. Add them under Accounts.
         </p>
       ) : (
         <ul className="space-y-3">
           {debts.map((d) => (
-            <li key={d.accountId} className="rounded-lg border border-hairline bg-surface p-4">
+            <li key={d.accountId} className="card p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-ink">{d.name}</p>

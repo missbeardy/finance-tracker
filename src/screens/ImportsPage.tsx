@@ -34,12 +34,12 @@ export function ImportsPage() {
 
       <ul className="space-y-3">
         {imports.length === 0 && !isLoading && !error && (
-          <li className="rounded-lg bg-surface p-4 text-sm text-ink-muted">
+          <li className="card p-4 text-sm text-ink-muted">
             No imports yet.
           </li>
         )}
         {imports.map((row) => (
-          <li key={row.id} className="rounded-lg bg-surface p-4">
+          <li key={row.id} className="card p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-ink">{row.filename}</p>

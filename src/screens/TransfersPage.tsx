@@ -145,7 +145,7 @@ export function TransfersPage() {
         </p>
       )}
 
-      <div className="rounded-lg bg-surface p-4">
+      <div className="card p-4">
         <p className="money text-[44px] leading-none text-ink">{pending.length}</p>
         <p className="mt-2 text-sm text-ink-muted">pending review</p>
       </div>
@@ -160,7 +160,7 @@ export function TransfersPage() {
           const isPendingAction =
             confirmTransfer.isPending && confirmTransfer.variables?.id === t.id
           return (
-            <li key={t.id} className="rounded-lg bg-surface p-4 text-sm">
+            <li key={t.id} className="card p-4 text-sm">
               <p className="font-medium text-ink">
                 Likely transfer · confidence {t.confidence}
               </p>
@@ -179,7 +179,7 @@ export function TransfersPage() {
                 <button
                   type="button"
                   disabled={confirmTransfer.isPending}
-                  className="rounded-md bg-flow px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                  className="rounded-md bg-flow px-3 py-1.5 text-xs font-medium text-on-accent disabled:opacity-50"
                   onClick={() => confirmTransfer.mutate({ id: t.id, confirm: true })}
                 >
                   {isPendingAction ? 'Confirming…' : 'Confirm'}

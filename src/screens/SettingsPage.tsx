@@ -18,8 +18,11 @@ import {
   useUpdateSavingsGoal,
 } from '@/hooks/useSavingsGoals'
 import { toast } from '@/lib/toastBus'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { useTheme } from '@/lib/theme'
 
 export function SettingsPage() {
+  const { theme } = useTheme()
   const { data: settings, isLoading } = useSettings()
   const { data: categories = [] } = useCategories()
   const updateSettings = useUpdateSettings()
@@ -214,7 +217,17 @@ export function SettingsPage() {
         </p>
       </div>
 
-      <div className="space-y-3 rounded-lg bg-surface p-4">
+      <div className="card flex items-center justify-between gap-3 p-4">
+        <div>
+          <h2 className="text-sm font-medium text-ink">Appearance</h2>
+          <p className="mt-1 text-xs text-ink-muted">
+            {theme === 'dark' ? 'Dark navy with neon accents' : 'Light with magenta–orange header'}
+          </p>
+        </div>
+        <ThemeToggle />
+      </div>
+
+      <div className="card space-y-3 p-4">
         <h2 className="text-sm font-medium text-ink">Budget period</h2>
         <label className="block text-xs text-ink-muted">
           Period type
@@ -242,13 +255,13 @@ export function SettingsPage() {
         <button
           type="button"
           onClick={() => void save()}
-          className="min-h-11 rounded-xl bg-flow px-4 text-sm font-semibold text-white"
+          className="min-h-11 rounded-xl bg-flow px-4 text-sm font-semibold text-on-accent"
         >
           Save settings
         </button>
       </div>
 
-      <div id="savings-goals" className="space-y-3 rounded-lg bg-surface p-4">
+      <div id="savings-goals" className="space-y-3 card p-4">
         <h2 className="text-sm font-medium text-ink">Savings goals</h2>
         <p className="text-xs text-ink-muted">
           Multiple sinking funds (holiday, car, Christmas). Overall budget target above still feeds
@@ -313,13 +326,13 @@ export function SettingsPage() {
         </div>
       </div>
 
-      <div className="space-y-3 rounded-lg bg-surface p-4">
+      <div className="space-y-3 card p-4">
         <h2 className="text-sm font-medium text-ink">Categories</h2>
         <CategoryManager />
         <p className="text-xs text-ink-muted">{categories.length} categories</p>
       </div>
 
-      <div className="space-y-3 rounded-lg bg-surface p-4">
+      <div className="space-y-3 card p-4">
         <h2 className="text-sm font-medium text-ink">Password</h2>
         <input className="field" type="password" autoComplete="current-password" placeholder="Current" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
         <input className="field" type="password" autoComplete="new-password" placeholder="New" minLength={6} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
@@ -327,7 +340,7 @@ export function SettingsPage() {
         <button
           type="button"
           disabled={passwordBusy || !currentPassword || !newPassword || !confirmPassword}
-          className="min-h-11 rounded-xl bg-flow px-4 text-sm font-semibold text-white disabled:opacity-60"
+          className="min-h-11 rounded-xl bg-flow px-4 text-sm font-semibold text-on-accent disabled:opacity-60"
           onClick={() => void handleChangePassword()}
         >
           {passwordBusy ? 'Changing…' : 'Change password'}
@@ -336,7 +349,7 @@ export function SettingsPage() {
         {passwordError && <p className="text-sm text-signal" role="alert">{passwordError}</p>}
       </div>
 
-      <div className="space-y-3 rounded-lg bg-surface p-4">
+      <div className="space-y-3 card p-4">
         <h2 className="text-sm font-medium text-ink">Backup & export</h2>
         <p className="text-xs text-ink-muted">
           JSON backup is full-fidelity for settings/rules. CSV is spreadsheet-friendly transactions.

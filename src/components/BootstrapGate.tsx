@@ -70,7 +70,7 @@ export function BootstrapGate({ children }: { children: ReactNode }) {
         <button
           type="button"
           onClick={retry}
-          className="min-h-11 rounded-xl bg-flow px-5 text-sm font-semibold text-white"
+          className="min-h-11 rounded-xl bg-flow px-5 text-sm font-semibold text-on-accent"
         >
           Try again
         </button>

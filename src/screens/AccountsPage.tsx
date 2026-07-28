@@ -182,7 +182,7 @@ export function AccountsPage() {
         {editingId == null && (
           <button
             type="button"
-            className="rounded-md bg-flow px-3 py-2 text-sm font-medium text-white"
+            className="rounded-md bg-flow px-3 py-2 text-sm font-medium text-on-accent"
             onClick={() => {
               setDraft(emptyDraft())
               setEditingId('new')
@@ -204,7 +204,7 @@ export function AccountsPage() {
       {netWorthCents != null && (
         <Link
           to="/net-worth"
-          className="mb-6 flex items-center justify-between rounded-lg border border-hairline bg-surface p-4"
+          className="mb-6 flex items-center justify-between card p-4"
         >
           <div>
             <p className="text-xs uppercase tracking-wide text-ink-muted">Net worth</p>
@@ -215,7 +215,7 @@ export function AccountsPage() {
       )}
 
       {editingId != null ? (
-        <div className="space-y-3 rounded-lg bg-surface p-4">
+        <div className="space-y-3 card p-4">
           <Field label="Name">
             <input
               className="field"
@@ -305,7 +305,7 @@ export function AccountsPage() {
           <div className="flex gap-2 pt-2">
             <button
               type="button"
-              className="rounded-md bg-flow px-3 py-2 text-sm font-medium text-white"
+              className="rounded-md bg-flow px-3 py-2 text-sm font-medium text-on-accent"
               onClick={() => void save()}
             >
               Save
@@ -325,7 +325,7 @@ export function AccountsPage() {
       ) : (
         <ul className="space-y-3">
           {accounts.length === 0 && (
-            <li className="space-y-3 rounded-lg bg-surface p-4 text-sm text-ink-muted">
+            <li className="space-y-3 card p-4 text-sm text-ink-muted">
               <p>No accounts yet. Load your real set in one tap:</p>
               <ul className="list-inside list-disc text-xs">
                 {DARREN_ACCOUNT_PRESET.map((p) => (
@@ -337,7 +337,7 @@ export function AccountsPage() {
               <button
                 type="button"
                 disabled={seeding}
-                className="rounded-md bg-flow px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+                className="rounded-md bg-flow px-3 py-2 text-sm font-medium text-on-accent disabled:opacity-60"
                 onClick={() => void seedPresetAccounts()}
               >
                 {seeding ? 'Adding…' : 'Add my 9 accounts'}
@@ -347,7 +347,7 @@ export function AccountsPage() {
           {accounts.length > 0 &&
             accounts.length < DARREN_ACCOUNT_PRESET.length &&
             editingId == null && (
-              <li className="rounded-lg border border-hairline bg-surface p-3 text-xs text-ink-muted">
+              <li className="card p-3 text-xs text-ink-muted">
                 Missing some of your preset accounts?{' '}
                 <button
                   type="button"
@@ -370,7 +370,7 @@ export function AccountsPage() {
             </li>
           )}
           {accounts.map((account) => (
-            <li key={account.id} className="rounded-lg bg-surface p-4">
+            <li key={account.id} className="card p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <span

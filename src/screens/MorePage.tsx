@@ -5,9 +5,12 @@ import { useAccounts } from '@/hooks/useAccounts'
 import { useCategories } from '@/hooks/useCategories'
 import { useUncategorizedCount } from '@/hooks/useUncategorizedTransactions'
 import { supabase } from '@/lib/supabase'
+import { ThemeToggle } from '@/components/ThemeToggle'
+import { useTheme } from '@/lib/theme'
 
 export function MorePage() {
   const { user, signOut } = useAuth()
+  const { theme } = useTheme()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const { data: uncategorizedCount = 0 } = useUncategorizedCount()
@@ -26,14 +29,24 @@ export function MorePage() {
 
   return (
     <section>
-      <h1 className="font-display text-[28px] font-semibold tracking-tight text-ink">
+      <h1 className="font-display pr-14 text-[28px] font-semibold tracking-tight text-ink">
         More
       </h1>
       <p className="mt-3 text-sm text-ink-muted">
-        Accounts, settings, and import tools for Phase 1–2.
+        Accounts, settings, and import tools.
       </p>
 
-      <nav className="mt-8 space-y-2">
+      <div className="card mt-6 flex items-center justify-between gap-3 px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-ink">Appearance</p>
+          <p className="text-xs text-ink-muted">
+            {theme === 'dark' ? 'Dark navy' : 'Light + gradient'} · tap to switch
+          </p>
+        </div>
+        <ThemeToggle />
+      </div>
+
+      <nav className="mt-4 space-y-2">
         <MoreLink
           to="/review"
           label="Review & Categorize"
@@ -61,13 +74,13 @@ export function MorePage() {
         />
       </nav>
 
-      <div className="mt-8 space-y-3 rounded-lg bg-surface p-4">
-        <p className="text-xs uppercase tracking-wide text-ink-muted">Signed in</p>
+      <div className="card mt-8 space-y-3 p-4">
+        <p className="section-label">Signed in</p>
         <p className="text-sm text-ink">{user?.email ?? '—'}</p>
         <button
           type="button"
           onClick={() => void signOut()}
-          className="mt-2 rounded-md border border-hairline px-3 py-2 text-sm font-medium text-ink transition-colors duration-120 hover:border-flow"
+          className="mt-2 min-h-11 rounded-2xl border border-hairline px-4 text-sm font-medium text-ink transition-colors duration-120 hover:border-flow"
         >
           Sign out
         </button>
@@ -80,7 +93,7 @@ function MoreLink({ to, label, meta }: { to: string; label: string; meta: string
   return (
     <Link
       to={to}
-      className="flex min-h-11 items-center justify-between rounded-lg bg-surface px-4 py-3 transition-colors duration-120 hover:bg-white"
+      className="card flex min-h-11 items-center justify-between px-4 py-3 transition-transform duration-120 active:scale-[0.99]"
     >
       <span className="text-sm font-medium text-ink">{label}</span>
       <span className="text-xs text-ink-muted">{meta}</span>

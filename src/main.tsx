@@ -6,8 +6,11 @@ import { AuthProvider } from '@/lib/auth'
 import { queryClient, queryPersister } from '@/lib/queryClient'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ToastHost } from '@/components/ToastHost'
+import { ThemeProvider, initTheme } from '@/lib/theme'
 import { App } from '@/App'
 import './index.css'
+
+initTheme()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -20,12 +23,14 @@ createRoot(document.getElementById('root')!).render(
       }}
     >
       <BrowserRouter>
-        <AuthProvider>
-          <ErrorBoundary>
-            <App />
-            <ToastHost />
-          </ErrorBoundary>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ErrorBoundary>
+              <App />
+              <ToastHost />
+            </ErrorBoundary>
+          </AuthProvider>
+        </ThemeProvider>
       </BrowserRouter>
     </PersistQueryClientProvider>
   </StrictMode>,

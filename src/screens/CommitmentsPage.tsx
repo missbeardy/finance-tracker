@@ -71,7 +71,7 @@ export function CommitmentsPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-hairline bg-surface p-4">
+      <div className="card p-4">
         <p className="text-xs uppercase tracking-wide text-ink-muted">Confirmed, per month</p>
         <p className="money mt-2 text-[32px] leading-none text-ink">{formatAud(monthlyTotal)}</p>
       </div>
@@ -84,7 +84,7 @@ export function CommitmentsPage() {
           })
         }
         disabled={sync.isPending || txnsLoading}
-        className="min-h-11 w-full rounded-xl bg-flow px-4 text-sm font-semibold text-white disabled:opacity-60"
+        className="min-h-11 w-full rounded-xl bg-flow px-4 text-sm font-semibold text-on-accent disabled:opacity-60"
       >
         {sync.isPending ? 'Scanning ledger…' : 'Scan for recurring charges'}
       </button>
@@ -142,7 +142,7 @@ function CommitmentRowItem({
     : '—'
 
   return (
-    <div className="rounded-lg border border-hairline bg-surface p-3">
+    <div className="card p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-ink">{commitment.merchant}</p>

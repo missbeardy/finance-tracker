@@ -89,7 +89,7 @@ export function MoneySankey({
 
   if (!graph) {
     return (
-      <div className="flex h-[200px] items-center justify-center rounded-lg bg-surface text-sm text-ink-muted">
+      <div className="flex h-[200px] items-center justify-center card text-sm text-ink-muted">
         Import transactions to see where money flows.
       </div>
     )

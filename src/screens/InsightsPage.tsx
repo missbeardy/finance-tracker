@@ -202,23 +202,23 @@ export function InsightsPage() {
       )}
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-lg bg-surface p-4">
+        <div className="card p-4">
           <p className="text-xs uppercase tracking-wide text-ink-muted">Money in (this month)</p>
           <p className="money mt-2 text-[28px] text-inbound">{formatAud(derived.moneyInThisMonth)}</p>
         </div>
-        <div className="rounded-lg bg-surface p-4">
+        <div className="card p-4">
           <p className="text-xs uppercase tracking-wide text-ink-muted">Money out (this month)</p>
           <p className="money mt-2 text-[28px] text-outbound">
             {formatAud(derived.moneyOutThisMonth)}
           </p>
         </div>
-        <div className="rounded-lg bg-surface p-4">
+        <div className="card p-4">
           <p className="text-xs uppercase tracking-wide text-ink-muted">Uncategorised</p>
           <p className="money mt-2 text-[28px] text-ink">
             {formatAud(derived.uncategorised)}
           </p>
         </div>
-        <div className="rounded-lg bg-surface p-4">
+        <div className="card p-4">
           <p className="text-xs uppercase tracking-wide text-ink-muted">Subs (annualised)</p>
           <p className="money mt-2 text-[28px] text-ink">
             {formatAud(derived.subscriptionAnnual)}
@@ -239,7 +239,7 @@ export function InsightsPage() {
           {derived.recurringBills.map((b) => (
             <li
               key={b.merchant}
-              className="flex items-center justify-between gap-3 rounded-lg bg-surface p-3 text-sm"
+              className="flex items-center justify-between gap-3 card p-3 text-sm"
             >
               <div className="min-w-0">
                 <p className="truncate text-ink">{b.merchant}</p>
@@ -264,7 +264,7 @@ export function InsightsPage() {
         <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-muted">
           Money in vs money out
         </h2>
-        <div className="h-44 rounded-lg bg-surface p-2">
+        <div className="h-44 card p-2">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={derived.inOutTrend}>
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
@@ -282,7 +282,7 @@ export function InsightsPage() {
         <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-muted">
           Category spend by month
         </h2>
-        <div className="h-44 rounded-lg bg-surface p-2">
+        <div className="h-44 card p-2">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={derived.monthTrend}>
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
@@ -298,7 +298,7 @@ export function InsightsPage() {
         <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-muted">
           Weekday pattern
         </h2>
-        <div className="h-40 rounded-lg bg-surface p-2">
+        <div className="h-40 card p-2">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={derived.weekdays}>
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />

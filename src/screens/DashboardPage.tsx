@@ -1,61 +1,84 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer } from 'recharts'
-import { format, parseISO } from 'date-fns'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { formatAud } from '@/lib/money'
 import { rangeForPeriod, type PeriodKey } from '@/lib/period'
-import { useDashboardData, type DashTxn } from '@/hooks/useDashboardData'
+import { useDashboardData, flowAmount, type CategoryTotal, type DashTxn } from '@/hooks/useDashboardData'
 import { useSettings } from '@/hooks/useSettings'
-import { useAccountBalances } from '@/hooks/useAccountBalances'
-import { useSavingsGoals } from '@/hooks/useSavingsGoals'
-import { useAuth } from '@/lib/auth'
-import { COLOR_TOKEN_HEX, type ColorToken } from '@/lib/accounts'
 import { QueryError } from '@/components/QueryError'
-import { MoneySankey } from '@/components/MoneySankey'
 import { getErrorMessage } from '@/lib/errors'
+import { COLOR_TOKEN_HEX } from '@/lib/accounts'
+import { categoryEmoji } from '@/lib/categoryEmoji'
 
-const GOAL_ACCENTS = [
-  COLOR_TOKEN_HEX['cat-2'],
-  COLOR_TOKEN_HEX['cat-4'],
-  COLOR_TOKEN_HEX['cat-1'],
-  COLOR_TOKEN_HEX['cat-6'],
-] as const
+const PERIODS: PeriodKey[] = ['this_month', 'last_month', 'pay_cycle']
+const PIE_SLICE_LIMIT = 7
 
-function displayName(email: string | undefined, meta: Record<string, unknown> | undefined): string {
-  const full = typeof meta?.full_name === 'string' ? meta.full_name.trim() : ''
-  const name = typeof meta?.name === 'string' ? meta.name.trim() : ''
-  const picked = full || name
-  if (picked) return picked.split(/\s+/)[0] ?? picked
-  if (email) {
-    const local = email.split('@')[0] ?? ''
-    return local.charAt(0).toUpperCase() + local.slice(1)
+type FlowMode = 'out' | 'in'
+
+type MerchantRollup = {
+  merchant: string
+  count: number
+  cents: number
+}
+
+function rollupByMerchant(txns: DashTxn[]): MerchantRollup[] {
+  const map = new Map<string, MerchantRollup>()
+  for (const t of txns) {
+    const key = t.merchant.trim() || 'Unknown'
+    const row = map.get(key) ?? { merchant: key, count: 0, cents: 0 }
+    row.count += 1
+    row.cents += Math.abs(t.amount)
+    map.set(key, row)
   }
-  return 'there'
+  return [...map.values()].sort((a, b) => b.cents - a.cents || a.merchant.localeCompare(b.merchant))
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  if (parts.length === 0) return '?'
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
-  return `${parts[0]![0] ?? ''}${parts[1]![0] ?? ''}`.toUpperCase()
+function buildPieData(categories: CategoryTotal[]) {
+  if (categories.length === 0) return []
+  if (categories.length <= PIE_SLICE_LIMIT) {
+    return categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      cents: c.cents,
+      color: c.color,
+    }))
+  }
+  const head = categories.slice(0, PIE_SLICE_LIMIT - 1)
+  const rest = categories.slice(PIE_SLICE_LIMIT - 1)
+  const otherCents = rest.reduce((s, c) => s + c.cents, 0)
+  return [
+    ...head.map((c) => ({
+      id: c.id,
+      name: c.name,
+      cents: c.cents,
+      color: c.color,
+    })),
+    {
+      id: -999,
+      name: 'Other',
+      cents: otherCents,
+      color: COLOR_TOKEN_HEX['cat-8'],
+    },
+  ]
 }
 
-function timeGreeting(now = new Date()): string {
-  const h = now.getHours()
-  if (h < 12) return 'Good morning'
-  if (h < 17) return 'Good afternoon'
-  return 'Good evening'
+function periodFromParam(raw: string | null): PeriodKey {
+  if (raw && PERIODS.includes(raw as PeriodKey)) return raw as PeriodKey
+  return 'this_month'
 }
 
-type NotifItem = { key: string; label: string; to: string }
-
+/**
+ * Home: money in/out, neon donut by category, expandable merchant rollups.
+ */
 export function DashboardPage() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { data: settings } = useSettings()
-  const [period, setPeriod] = useState<PeriodKey>('this_month')
-  const [notifOpen, setNotifOpen] = useState(false)
-  const notifRef = useRef<HTMLDivElement>(null)
+  const [period, setPeriod] = useState<PeriodKey>(() =>
+    periodFromParam(searchParams.get('period')),
+  )
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [flowMode, setFlowMode] = useState<FlowMode>('out')
 
   const range = useMemo(
     () =>
@@ -65,184 +88,86 @@ export function DashboardPage() {
     [period, settings?.payday],
   )
 
-  const { outbound, topCategories, alerts, isLoading, error, data, refetch, sankey, netSeries } =
-    useDashboardData(range)
-  const netSeriesSafe = netSeries ?? []
-  const sankeySafe = sankey ?? []
-  const { netWorthCents, isLoading: netWorthLoading } = useAccountBalances()
-  const { data: savingsGoals } = useSavingsGoals()
+  const {
+    inbound,
+    outbound,
+    net,
+    spendByCategory,
+    incomeByCategory,
+    alerts,
+    isLoading,
+    error,
+    refetch,
+    data,
+  } = useDashboardData(range)
 
-  useEffect(() => {
-    if (!notifOpen) return
-    function onPointerDown(e: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setNotifOpen(false)
-      }
+  const categories = (flowMode === 'out' ? spendByCategory : incomeByCategory) ?? []
+  const flowTotal = flowMode === 'out' ? outbound : inbound
+
+  const flowTxns = useMemo(() => {
+    const current = data?.current ?? []
+    return current.filter((t) => {
+      if (t.transfer_id != null) return false
+      if (t.status === 'excluded' || t.status === 'pending_transfer_review') return false
+      const amount = flowAmount(t)
+      return flowMode === 'out' ? amount < 0 : amount > 0
+    })
+  }, [data?.current, flowMode])
+
+  const txnsByCategory = useMemo(() => {
+    const map = new Map<number, DashTxn[]>()
+    for (const t of flowTxns) {
+      const id = t.category_id ?? -1
+      const list = map.get(id) ?? []
+      list.push(t)
+      map.set(id, list)
     }
-    document.addEventListener('mousedown', onPointerDown)
-    return () => document.removeEventListener('mousedown', onPointerDown)
-  }, [notifOpen])
-
-  const firstName = displayName(
-    user?.email,
-    user?.user_metadata as Record<string, unknown> | undefined,
-  )
-  const avatarInitials = initials(firstName)
-
-  const notifItems = useMemo<NotifItem[]>(() => {
-    const items: NotifItem[] = []
-    if ((alerts?.uncategorised ?? 0) > 0) {
-      items.push({
-        key: 'uncategorised',
-        label: `Review ${alerts!.uncategorised} uncategorised`,
-        to: '/review',
-      })
+    for (const list of map.values()) {
+      list.sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)
     }
-    if ((alerts?.pendingTransfers ?? 0) > 0) {
-      items.push({
-        key: 'transfers',
-        label: `${alerts!.pendingTransfers} transfers to review`,
-        to: '/transfers',
-      })
-    }
-    if (alerts?.daysSinceImport != null && alerts.daysSinceImport >= 7) {
-      items.push({
-        key: 'import',
-        label: `Last import ${alerts.daysSinceImport}d ago`,
-        to: '/import',
-      })
-    }
-    return items
-  }, [alerts])
+    return map
+  }, [flowTxns])
 
-  const notifCount =
-    (alerts?.uncategorised ?? 0) +
-    (alerts?.pendingTransfers ?? 0) +
-    (alerts?.daysSinceImport != null && alerts.daysSinceImport >= 7 ? 1 : 0)
+  const pieData = useMemo(() => buildPieData(categories), [categories])
 
-  const chartData = useMemo(() => {
-    const total = topCategories.reduce((s, c) => s + c.cents, 0) || 1
-    return topCategories.slice(0, 5).map((c) => ({
-      id: c.id,
-      name: c.name,
-      value: c.cents,
-      color: c.color,
-      pct: Math.round((c.cents / total) * 100),
-    }))
-  }, [topCategories])
+  function setMode(next: FlowMode) {
+    if (next === flowMode) return
+    setFlowMode(next)
+    setExpandedId(null)
+  }
 
-  const recentTxns = useMemo(() => {
-    return (data?.current ?? [])
-      .filter((t) => t.transfer_id == null && t.status !== 'excluded')
-      .slice()
-      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id))
-      .slice(0, 5)
-  }, [data?.current])
-
-  const savingsTarget = settings?.savings_target_cents ?? null
-  const savingsProgressCents = useMemo(() => {
-    if (savingsTarget == null || savingsTarget <= 0) return 0
-    const inbound = (data?.current ?? [])
-      .filter((t) => t.transfer_id == null && t.status !== 'excluded' && t.amount > 0)
-      .reduce((s, t) => s + t.amount, 0)
-    return Math.min(Math.max(0, inbound - outbound), savingsTarget)
-  }, [data?.current, outbound, savingsTarget])
-
-  const savingsPct =
-    savingsTarget && savingsTarget > 0
-      ? Math.min(100, Math.round((savingsProgressCents / savingsTarget) * 100))
-      : 0
-
-  const hasGoals = (savingsGoals?.length ?? 0) > 0
+  function toggleCategory(id: number) {
+    if (id === -999) return
+    setExpandedId((prev) => (prev === id ? null : id))
+  }
 
   return (
-    <section className="relative space-y-4 pb-16">
-      {/* Full-bleed purple hero */}
-      <header className="relative -mx-4 overflow-hidden bg-ink px-4 pb-6 pt-1 text-white">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-flow/45 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -bottom-20 left-4 h-40 w-40 rounded-full bg-flow-soft/40 blur-3xl"
-        />
-
-        <div className="relative flex items-start justify-between gap-3 pt-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-flow text-sm font-semibold text-white ring-2 ring-white/20"
-              aria-hidden
-            >
-              {avatarInitials}
-            </div>
-            <div className="min-w-0">
-              <h1 className="font-display truncate text-[28px] font-semibold leading-none tracking-tight">
-                Hello {firstName}!
-              </h1>
-              <p className="mt-2 text-sm text-white/65">
-                {timeGreeting()} · {range.label}
-              </p>
-            </div>
+    <section className="-mx-4 -mt-5 pb-16">
+      <header
+        className="header-hero px-4 pb-8"
+        style={{ paddingTop: 'max(1.5rem, calc(env(safe-area-inset-top) + 1.25rem))' }}
+      >
+        <div className="flex flex-wrap items-end justify-between gap-3 pr-14">
+          <div>
+            <p className="section-label !text-white/70">Overview</p>
+            <h1 className="mt-1 font-display text-[28px] font-semibold tracking-tight text-white">
+              Your money
+            </h1>
+            <p className="mt-1 text-sm text-white/75">{range.label}</p>
           </div>
-
-          <div className="relative shrink-0" ref={notifRef}>
-            <button
-              type="button"
-              onClick={() => setNotifOpen((v) => !v)}
-              className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/85"
-              aria-label="Notifications"
-              aria-expanded={notifOpen}
-              aria-haspopup="menu"
-            >
-              <BellIcon />
-              {notifCount > 0 && (
-                <span
-                  className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-signal px-1 text-xs font-semibold text-white"
-                  aria-hidden
-                >
-                  {notifCount}
-                </span>
-              )}
-            </button>
-
-            {notifOpen && (
-              <div
-                role="menu"
-                className="absolute right-0 top-full z-40 mt-2 w-64 rounded-lg bg-surface p-2 text-ink shadow-soft"
-              >
-                {notifItems.length === 0 ? (
-                  <p className="px-3 py-3 text-sm text-ink-muted">You&rsquo;re caught up</p>
-                ) : (
-                  <ul>
-                    {notifItems.map((item) => (
-                      <li key={item.key}>
-                        <Link
-                          to={item.to}
-                          role="menuitem"
-                          onClick={() => setNotifOpen(false)}
-                          className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink hover:bg-paper-deep"
-                        >
-                          {item.label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="relative mt-5 flex flex-wrap items-center gap-2">
           <label className="sr-only" htmlFor="dash-period">
             Period
           </label>
           <select
             id="dash-period"
-            className="ml-auto min-h-11 rounded-full border border-white/15 bg-white/10 px-3 text-sm font-semibold text-white outline-none"
+            className="min-h-11 rounded-2xl border-0 bg-white/20 px-3 text-sm font-semibold text-white backdrop-blur-md outline-none"
             value={period}
-            onChange={(e) => setPeriod(e.target.value as PeriodKey)}
+            onChange={(e) => {
+              const next = e.target.value as PeriodKey
+              setPeriod(next)
+              setExpandedId(null)
+              setSearchParams(next === 'this_month' ? {} : { period: next }, { replace: true })
+            }}
           >
             <option value="this_month" className="text-ink">
               This month
@@ -255,440 +180,397 @@ export function DashboardPage() {
             </option>
           </select>
         </div>
+
+        <div className="mt-6 grid grid-cols-1 gap-3">
+          <div className="rounded-2xl bg-white/15 px-4 py-4 backdrop-blur-md">
+            <p className="section-label !text-white/65">Net</p>
+            <p
+              className="money mt-2 text-left text-[44px] leading-none text-white"
+              aria-label={`Net ${formatAud(net)}`}
+            >
+              {net >= 0 ? `+${formatAud(net)}` : formatAud(net)}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <FigureCard
+              label="Money in"
+              value={inbound}
+              tone="in"
+              active={flowMode === 'in'}
+              onSelect={() => setMode('in')}
+              onHero
+            />
+            <FigureCard
+              label="Money out"
+              value={outbound}
+              tone="out"
+              active={flowMode === 'out'}
+              onSelect={() => setMode('out')}
+              onHero
+            />
+          </div>
+        </div>
       </header>
 
-      {isLoading && (
-        <p className="text-sm text-ink-muted" aria-live="polite">
-          Loading figures…
-        </p>
-      )}
-      {error && (
-        <QueryError message={getErrorMessage(error)} onRetry={() => void refetch()} />
-      )}
-
-      {/* Net worth strip */}
-      <Link
-        to="/net-worth"
-        className="block rounded-lg border border-hairline bg-surface p-4"
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold text-ink">Net worth</h2>
-            {netWorthLoading ? (
-              <p className="mt-2 text-sm text-ink-muted">Loading…</p>
-            ) : netWorthCents == null ? (
-              <p className="mt-2 text-sm text-ink-muted">
-                Add opening balances or import with balance column
-              </p>
-            ) : (
-              <p className="money mt-2 text-[28px] text-ink">{formatAud(netWorthCents)}</p>
-            )}
-          </div>
-          <span aria-hidden className="shrink-0 text-sm font-semibold text-flow">
-            →
-          </span>
-        </div>
-      </Link>
-
-      {/* Monthly spending — donut + legend */}
-      <div className="rounded-lg border border-hairline bg-surface p-4">
-        <h2 className="text-base font-semibold text-ink">Monthly spending</h2>
-
-        {chartData.length === 0 ? (
-          <div className="mt-4 space-y-3">
-            <p className="text-sm text-ink-muted">
-              No spending in this period yet. Import a CSV to get started.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate('/import')}
-              className="inline-flex min-h-11 items-center rounded-xl bg-flow px-4 text-sm font-semibold text-white"
-            >
-              Import CSV
-            </button>
-          </div>
-        ) : (
-          <div className="mt-4 flex items-center gap-4">
-            <ul className="min-w-0 flex-1 space-y-3">
-              {chartData.map((row) => (
-                <li key={row.id} className="flex items-center gap-2 text-sm">
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: row.color }}
-                    aria-hidden
-                  />
-                  <span className="min-w-0 flex-1 truncate text-ink">{row.name}</span>
-                  <span className="ledger-mono shrink-0 text-ink-muted">{row.pct}%</span>
-                </li>
-              ))}
-            </ul>
-            <div className="relative h-40 w-40 shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius="64%"
-                    outerRadius="94%"
-                    stroke="none"
-                    paddingAngle={2}
-                    startAngle={90}
-                    endAngle={-270}
-                  >
-                    {chartData.map((row) => (
-                      <Cell key={row.id} fill={row.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-3 text-center">
-                <p className="money text-[20px] leading-none text-ink">{formatAud(outbound)}</p>
-                <p className="mt-1 text-xs font-medium uppercase tracking-wide text-ink-muted">
-                  Total spent
-                </p>
-              </div>
-            </div>
-          </div>
+      <div className="relative z-10 -mt-4 space-y-4 px-4">
+        {isLoading && <p className="text-sm text-ink-muted">Loading figures…</p>}
+        {error && (
+          <QueryError message={getErrorMessage(error)} onRetry={() => void refetch()} />
         )}
 
-        <Link
-          to="/insights"
-          className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-flow"
-        >
-          More insights →
-        </Link>
-      </div>
+        {(alerts?.uncategorised ?? 0) > 0 && (
+          <Link
+            to="/review"
+            className="card flex min-h-11 items-center justify-between px-4 py-3"
+          >
+            <span className="text-sm text-ink">
+              {alerts!.uncategorised} uncategorised — review to clean this up
+            </span>
+            <span className="text-sm font-semibold text-flow">Review →</span>
+          </Link>
+        )}
 
-      {/* Net trend sparkline */}
-      {netSeriesSafe.length > 1 && (
-        <div className="rounded-lg border border-hairline bg-surface p-4">
-          <h2 className="text-base font-semibold text-ink">Net trend</h2>
-          <div className="mt-4 h-20">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={netSeriesSafe}>
-                <Line
-                  type="monotone"
-                  dataKey="net"
-                  stroke="var(--flow)"
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {/* Money flow */}
-      {sankeySafe.length > 0 && (
-        <div className="rounded-lg border border-hairline bg-surface p-4">
-          <h2 className="text-base font-semibold text-ink">Where money flows</h2>
-          <div className="mt-4">
-            <MoneySankey links={sankeySafe} onCategoryClick={() => navigate('/ledger')} />
-          </div>
-        </div>
-      )}
-
-      {/* Savings goals */}
-      <div className="rounded-lg border border-hairline bg-surface p-4">
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold text-ink">Savings goals</h2>
-          {hasGoals && (
-            <Link
-              to="/settings#savings-goals"
-              className="min-h-11 inline-flex items-center text-sm font-semibold text-flow"
+        <div className="card overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
+            <h2 className="text-base font-semibold text-ink">
+              {flowMode === 'out' ? 'Where it went' : 'Where it came from'}
+            </h2>
+            <div
+              className="inline-flex rounded-full bg-paper-deep p-1"
+              role="group"
+              aria-label="Money direction"
             >
-              Manage goals →
-            </Link>
+              <button
+                type="button"
+                onClick={() => setMode('out')}
+                className={[
+                  'min-h-11 rounded-full px-4 text-sm font-semibold transition-all',
+                  flowMode === 'out'
+                    ? 'bg-flow text-on-accent shadow-[var(--glow-flow)]'
+                    : 'text-ink-muted',
+                ].join(' ')}
+              >
+                Out
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('in')}
+                className={[
+                  'min-h-11 rounded-full px-4 text-sm font-semibold transition-all',
+                  flowMode === 'in'
+                    ? 'bg-inbound text-on-accent shadow-[0_0_24px_-4px_rgb(57_255_20_/_0.45)]'
+                    : 'text-ink-muted',
+                ].join(' ')}
+              >
+                In
+              </button>
+            </div>
+          </div>
+
+          {!isLoading && categories.length === 0 && (
+            <div className="p-4">
+              <p className="text-sm text-ink-muted">
+                {flowMode === 'out'
+                  ? 'No spending in this period yet. Import a CSV to see where money goes.'
+                  : 'No money in for this period yet.'}
+              </p>
+              {flowMode === 'out' && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/import')}
+                  className="btn-primary mt-3"
+                >
+                  Import CSV
+                </button>
+              )}
+            </div>
+          )}
+
+          {categories.length > 0 && (
+            <>
+              <div className="chart-glow relative mx-auto h-52 w-full max-w-xs px-4 pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Tooltip
+                      content={
+                        <PieCategoryTooltip totalCents={flowTotal} inbound={flowMode === 'in'} />
+                      }
+                      trigger="hover"
+                      wrapperStyle={{ zIndex: 10, outline: 'none' }}
+                    />
+                    <Pie
+                      data={pieData}
+                      dataKey="cents"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius="56%"
+                      outerRadius="88%"
+                      paddingAngle={3}
+                      stroke="none"
+                      onClick={(_, index) => {
+                        const slice = pieData[index]
+                        if (slice) toggleCategory(slice.id)
+                      }}
+                      style={{ cursor: 'pointer', outline: 'none' }}
+                    >
+                      {pieData.map((entry) => (
+                        <Cell
+                          key={entry.id}
+                          fill={entry.color}
+                          style={{
+                            filter:
+                              expandedId == null ||
+                              expandedId === entry.id ||
+                              entry.id === -999
+                                ? `drop-shadow(0 0 6px ${entry.color})`
+                                : undefined,
+                            opacity:
+                              expandedId == null ||
+                              expandedId === entry.id ||
+                              entry.id === -999
+                                ? 1
+                                : 0.28,
+                          }}
+                        />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pt-2">
+                  <p className="section-label">
+                    {flowMode === 'out' ? 'Spent' : 'Received'}
+                  </p>
+                  <p
+                    className={[
+                      'money mt-1 text-center text-[28px] leading-none',
+                      flowMode === 'in' ? 'text-inbound' : 'text-ink',
+                    ].join(' ')}
+                  >
+                    {flowMode === 'in' ? `+${formatAud(flowTotal)}` : formatAud(flowTotal)}
+                  </p>
+                </div>
+              </div>
+              <p className="px-4 pb-2 text-center text-xs text-ink-muted">
+                Tap a slice or category to see the breakdown
+              </p>
+
+              <ul>
+                {categories.map((cat) => {
+                  const pct = flowTotal > 0 ? Math.round((cat.cents / flowTotal) * 100) : 0
+                  const open = expandedId === cat.id
+                  const rows = txnsByCategory.get(cat.id) ?? []
+
+                  return (
+                    <li key={cat.id} className="border-t border-hairline">
+                      <button
+                        type="button"
+                        aria-expanded={open}
+                        onClick={() => toggleCategory(cat.id)}
+                        className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left"
+                      >
+                        <span
+                          className="emoji-icon"
+                          style={{
+                            boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.35), 0 0 16px -4px ${cat.color}`,
+                          }}
+                          aria-hidden
+                        >
+                          {categoryEmoji(cat.name)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-ink">
+                            {cat.name}
+                          </span>
+                          <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-paper-deep">
+                            <span
+                              className="block h-full rounded-full"
+                              style={{
+                                width: `${Math.max(pct > 0 ? 4 : 0, pct)}%`,
+                                background: cat.color,
+                                boxShadow: `0 0 10px ${cat.color}`,
+                              }}
+                            />
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-right">
+                          <span
+                            className={[
+                              'money block text-[16px] leading-none',
+                              flowMode === 'in' ? 'text-inbound' : 'text-ink',
+                            ].join(' ')}
+                          >
+                            {flowMode === 'in' ? `+${formatAud(cat.cents)}` : formatAud(cat.cents)}
+                          </span>
+                          <span className="ledger-mono mt-1 block text-xs text-ink-muted">
+                            {pct}%
+                          </span>
+                        </span>
+                      </button>
+
+                      {open && (
+                        <div className="bg-paper-deep/60">
+                          {rows.length === 0 ? (
+                            <p className="px-4 py-3 text-sm text-ink-muted">No transactions.</p>
+                          ) : (
+                            <ul>
+                              {rollupByMerchant(rows).map((m) => (
+                                <li
+                                  key={m.merchant}
+                                  className="flex min-h-14 items-center gap-3 border-t border-hairline px-4 py-3"
+                                >
+                                  <div className="min-w-0 flex-1 pl-2">
+                                    <p className="truncate text-sm font-medium text-ink">
+                                      {m.merchant}
+                                      {m.count > 1 ? (
+                                        <span className="font-normal text-ink-muted">
+                                          {' '}
+                                          ({m.count} times)
+                                        </span>
+                                      ) : null}
+                                    </p>
+                                  </div>
+                                  <p
+                                    className={[
+                                      'ledger-mono shrink-0 text-sm',
+                                      flowMode === 'in' ? 'text-inbound' : 'text-ink',
+                                    ].join(' ')}
+                                  >
+                                    {flowMode === 'in'
+                                      ? `+${formatAud(m.cents)}`
+                                      : formatAud(-m.cents)}
+                                  </p>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {(cat.id === -1 || cat.name === 'Uncategorised') && (
+                            <div className="border-t border-hairline px-4 py-3">
+                              <Link to="/review" className="text-sm font-semibold text-flow">
+                                Review & categorise →
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
           )}
         </div>
 
-        {hasGoals ? (
-          <ul className="mt-4 space-y-4">
-            {savingsGoals!.map((goal, i) => {
-              const accent = GOAL_ACCENTS[i % GOAL_ACCENTS.length]!
-              const pct =
-                goal.target_cents > 0
-                  ? Math.min(100, Math.round((goal.current_cents / goal.target_cents) * 100))
-                  : 0
-              return (
-                <li key={goal.id} className="flex items-start gap-3">
-                  <div
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-                    style={{ background: `color-mix(in srgb, ${accent} 16%, white)` }}
-                    aria-hidden
-                  >
-                    <GoalGlyph accent={accent} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <p className="truncate text-sm font-semibold text-ink">{goal.name}</p>
-                      <p className="ledger-mono shrink-0 text-sm text-ink-muted">{pct}%</p>
-                    </div>
-                    <p className="mt-1 money text-right text-sm text-ink-muted">
-                      {formatAud(goal.current_cents)}
-                      <span> / </span>
-                      {formatAud(goal.target_cents)}
-                    </p>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-paper-deep">
-                      <div
-                        className="h-full rounded-full transition-[width] duration-300"
-                        style={{
-                          width: `${Math.max(pct > 0 ? 4 : 0, pct)}%`,
-                          background: accent,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        ) : savingsTarget == null || savingsTarget <= 0 ? (
-          <div className="mt-4">
-            <p className="text-sm text-ink-muted">
-              No savings target set. Add one in Settings to track progress here.
-            </p>
-            <Link
-              to="/settings"
-              className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-flow"
-            >
-              Open settings →
-            </Link>
-          </div>
-        ) : (
-          <div className="mt-4 flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-flow/15 text-flow">
-              <GoalGlyph accent="currentColor" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className="text-sm font-semibold text-ink">Savings target</p>
-                <p className="ledger-mono text-sm font-medium text-ink">{savingsPct}%</p>
-              </div>
-              <p className="mt-1 money text-right text-sm text-ink-muted">
-                {formatAud(savingsProgressCents)}
-                <span> / </span>
-                {formatAud(savingsTarget)}
-              </p>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-paper-deep">
-                <div
-                  className="h-full rounded-full bg-flow transition-[width] duration-300"
-                  style={{ width: `${Math.max(savingsPct > 0 ? 4 : 0, savingsPct)}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Recent transactions */}
-      <div className="rounded-lg border border-hairline bg-surface p-4">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold text-ink">Recent transactions</h2>
-          <Link to="/ledger" className="min-h-11 inline-flex items-center text-sm font-semibold text-flow">
-            View all
+        <div className="flex flex-wrap gap-3 pb-4 text-sm">
+          <Link
+            to="/ledger"
+            className="inline-flex min-h-11 items-center rounded-2xl bg-surface px-4 font-semibold text-flow shadow-[var(--card-shadow)]"
+          >
+            Full ledger →
+          </Link>
+          <Link
+            to="/insights"
+            className="inline-flex min-h-11 items-center rounded-2xl bg-surface px-4 font-semibold text-flow shadow-[var(--card-shadow)]"
+          >
+            Trends →
           </Link>
         </div>
-
-        {recentTxns.length === 0 ? (
-          <p className="text-sm text-ink-muted">No transactions in this period.</p>
-        ) : (
-          <ul>
-            {recentTxns.map((txn, i) => (
-              <RecentRow
-                key={txn.id}
-                txn={txn}
-                memberInitial={avatarInitials.slice(0, 1)}
-                showDivider={i < recentTxns.length - 1}
-              />
-            ))}
-          </ul>
-        )}
       </div>
-
-      {(alerts?.uncategorised ||
-        alerts?.pendingTransfers ||
-        (alerts?.daysSinceImport != null && alerts.daysSinceImport >= 7)) && (
-        <div className="flex gap-2 overflow-x-auto pb-1 text-xs">
-          {(alerts.uncategorised ?? 0) > 0 && (
-            <Link
-              to="/review"
-              className="shrink-0 rounded-xl border border-hairline bg-surface px-3 py-2 font-medium text-ink"
-            >
-              {alerts.uncategorised} uncategorised
-            </Link>
-          )}
-          {(alerts.pendingTransfers ?? 0) > 0 && (
-            <Link
-              to="/transfers"
-              className="shrink-0 rounded-xl bg-flow px-3 py-2 font-semibold text-white"
-            >
-              {alerts.pendingTransfers} transfers to review
-            </Link>
-          )}
-          {alerts.daysSinceImport != null && alerts.daysSinceImport >= 7 && (
-            <Link
-              to="/import"
-              className="shrink-0 rounded-xl border border-caution/30 bg-surface px-3 py-2 font-medium text-ink"
-            >
-              Last import {alerts.daysSinceImport}d ago
-            </Link>
-          )}
-        </div>
-      )}
-
-      {/* FAB — above bottom nav */}
-      <button
-        type="button"
-        onClick={() => navigate('/import')}
-        className="fixed bottom-[5.75rem] right-4 z-30 flex min-h-12 items-center gap-2 rounded-full bg-flow px-5 text-sm font-semibold text-white shadow-[var(--glow-flow)] sm:right-[max(1rem,calc(50%-11rem))]"
-        style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        <span aria-hidden className="text-xl leading-none">
-          +
-        </span>
-        Add expense
-      </button>
     </section>
   )
 }
 
-function RecentRow({
-  txn,
-  memberInitial,
-  showDivider,
+function FigureCard({
+  label,
+  value,
+  tone,
+  active,
+  onSelect,
+  onHero,
 }: {
-  txn: DashTxn
-  memberInitial: string
-  showDivider: boolean
+  label: string
+  value: number
+  tone: 'in' | 'out' | 'neutral'
+  active?: boolean
+  onSelect?: () => void
+  onHero?: boolean
 }) {
-  const token = txn.categories?.color_token
-  const color =
-    token && token in COLOR_TOKEN_HEX
-      ? COLOR_TOKEN_HEX[token as ColorToken]
-      : COLOR_TOKEN_HEX['cat-8']
-  const label = txn.merchant || txn.description || 'Transaction'
-  const catName = txn.categories?.name ?? ''
-  const dateLabel = (() => {
-    try {
-      return format(parseISO(txn.date), 'd MMM yyyy')
-    } catch {
-      return txn.date
-    }
-  })()
+  const valueColor = onHero
+    ? 'text-white'
+    : tone === 'in'
+      ? 'text-inbound'
+      : 'text-ink'
 
-  return (
-    <li
-      className={[
-        'flex min-h-14 items-center gap-3 py-3',
-        showDivider ? 'border-b border-hairline' : '',
-      ].join(' ')}
-    >
-      <div
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-        style={{ background: `color-mix(in srgb, ${color} 16%, white)` }}
-        aria-hidden
+  const inner = (
+    <>
+      <p className={['section-label', onHero ? '!text-white/65' : ''].join(' ')}>{label}</p>
+      <p className={['money mt-2 text-left text-[20px] leading-none sm:text-[28px]', valueColor].join(' ')}>
+        {tone === 'in' && value > 0 ? `+${formatAud(value)}` : formatAud(value)}
+      </p>
+    </>
+  )
+
+  if (onSelect) {
+    return (
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={active}
+        className={[
+          'min-h-16 w-full rounded-2xl px-3 py-4 text-left transition-all',
+          onHero
+            ? active
+              ? 'bg-white/25 ring-2 ring-white/70'
+              : 'bg-white/12'
+            : active
+              ? 'card ring-2 ring-flow'
+              : 'card',
+        ].join(' ')}
       >
-        <CategoryGlyph name={catName} color={color} />
+        {inner}
+      </button>
+    )
+  }
+
+  return <div className="card px-3 py-4">{inner}</div>
+}
+
+type PieTooltipProps = {
+  active?: boolean
+  payload?: Array<{
+    name?: string
+    value?: number
+    payload?: { name: string; cents: number; color: string }
+  }>
+  totalCents: number
+  inbound?: boolean
+}
+
+function PieCategoryTooltip({ active, payload, totalCents, inbound }: PieTooltipProps) {
+  if (!active || !payload?.length) return null
+  const item = payload[0]?.payload
+  if (!item) return null
+  const pct = totalCents > 0 ? Math.round((item.cents / totalCents) * 100) : 0
+
+  return (
+    <div className="card px-3 py-2">
+      <div className="flex items-center gap-2">
+        <span className="emoji-icon !h-8 !w-8 !text-[14px]" aria-hidden>
+          {categoryEmoji(item.name)}
+        </span>
+        <p className="max-w-[10rem] truncate text-sm font-medium text-ink">{item.name}</p>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-ink">{label}</p>
-        <p className="text-xs text-ink-muted">{dateLabel}</p>
-      </div>
-      <p className="money shrink-0 text-sm text-ink">{formatAud(txn.amount)}</p>
-      <div
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-flow/15 text-xs font-semibold text-flow"
-        title="You"
-        aria-label="You"
+      <p
+        className={[
+          'ledger-mono mt-1 text-right text-sm',
+          inbound ? 'text-inbound' : 'text-ink',
+        ].join(' ')}
       >
-        {memberInitial}
-      </div>
-    </li>
+        {inbound ? `+${formatAud(item.cents)}` : formatAud(item.cents)}
+      </p>
+      <p className="mt-1 text-right text-xs text-ink-muted">
+        {pct}% of {inbound ? 'income' : 'spending'}
+      </p>
+    </div>
   )
-}
-
-function CategoryGlyph({ name, color }: { name: string; color: string }) {
-  const n = name.toLowerCase()
-  if (n.includes('food') || n.includes('groc') || n.includes('dining') || n.includes('restaurant')) {
-    return <CartIcon color={color} />
-  }
-  if (n.includes('util') || n.includes('electric') || n.includes('gas') || n.includes('water')) {
-    return <BoltIcon color={color} />
-  }
-  if (n.includes('transport') || n.includes('fuel') || n.includes('car')) {
-    return <CarIcon color={color} />
-  }
-  return <DotIcon color={color} />
-}
-
-function BellIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 3a5 5 0 0 0-5 5v2.2c0 .7-.2 1.4-.6 2L5 14.5V16h14v-1.5l-1.4-2.3c-.4-.6-.6-1.3-.6-2V8a5 5 0 0 0-5-5Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path d="M10 18a2 2 0 0 0 4 0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function GoalGlyph({ accent }: { accent: string }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden style={{ color: accent }}>
-      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-    </svg>
-  )
-}
-
-function CartIcon({ color }: { color: string }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M6 6h15l-1.5 9h-12L6 6Zm0 0L5 3H2"
-        stroke={color}
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="9" cy="20" r="1.2" fill={color} />
-      <circle cx="17" cy="20" r="1.2" fill={color} />
-    </svg>
-  )
-}
-
-function BoltIcon({ color }: { color: string }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M13 2 4 14h7l-1 8 10-14h-7l0-6Z"
-        stroke={color}
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function CarIcon({ color }: { color: string }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M5 16V9.5L7.5 5h9L19 9.5V16M5 16h14M7.5 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"
-        stroke={color}
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function DotIcon({ color }: { color: string }) {
-  return <span className="h-2 w-2 rounded-full" style={{ background: color }} />
 }

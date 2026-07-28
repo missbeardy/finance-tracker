@@ -29,12 +29,12 @@ export const COLOR_TOKENS = [
 export type ColorToken = (typeof COLOR_TOKENS)[number]
 
 export const COLOR_TOKEN_HEX: Record<ColorToken, string> = {
-  'cat-1': '#7C3AED',
-  'cat-2': '#A855F7',
-  'cat-3': '#6366F1',
-  'cat-4': '#DB2777',
-  'cat-5': '#8B5CF6',
-  'cat-6': '#4F46E5',
-  'cat-7': '#C026D3',
+  'cat-1': '#00E5FF',
+  'cat-2': '#FF2D95',
+  'cat-3': '#FACC15',
+  'cat-4': '#39FF14',
+  'cat-5': '#FF6B00',
+  'cat-6': '#38BDF8',
+  'cat-7': '#F472B6',
   'cat-8': '#94A3B8',
 }

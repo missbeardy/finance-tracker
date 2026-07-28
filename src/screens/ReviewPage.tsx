@@ -147,7 +147,7 @@ export function ReviewPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg bg-surface p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3 card p-4">
         <div>
           <p className="text-xs uppercase tracking-wide text-ink-muted">Remaining</p>
           <p className="mt-1 font-display text-[20px] font-semibold text-ink">
@@ -183,7 +183,7 @@ export function ReviewPage() {
                 type="button"
                 disabled={applyPreview === 0 || applyRules.isPending}
                 onClick={() => void handleConfirmApplyRules()}
-                className="min-h-11 rounded-xl bg-flow px-4 text-sm font-semibold text-white disabled:opacity-50"
+                className="min-h-11 rounded-xl bg-flow px-4 text-sm font-semibold text-on-accent disabled:opacity-50"
               >
                 {applyRules.isPending ? 'Applying…' : 'Confirm'}
               </button>
@@ -193,7 +193,7 @@ export function ReviewPage() {
       </div>
 
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface p-3">
+        <div className="flex flex-wrap items-center gap-2 card p-3">
           <p className="text-sm text-ink">{selected.size} selected</p>
           <select
             className="field min-h-11 min-w-[10rem] flex-1"
@@ -211,7 +211,7 @@ export function ReviewPage() {
             type="button"
             disabled={!bulkCategoryId || bulkUpdate.isPending}
             onClick={() => void assignBulk()}
-            className="min-h-11 rounded-xl bg-flow px-4 text-sm font-semibold text-white disabled:opacity-50"
+            className="min-h-11 rounded-xl bg-flow px-4 text-sm font-semibold text-on-accent disabled:opacity-50"
           >
             {bulkUpdate.isPending ? 'Saving…' : 'Apply'}
           </button>
@@ -224,13 +224,13 @@ export function ReviewPage() {
       )}
 
       {!isLoading && rows.length === 0 && !error && (
-        <p className="rounded-lg bg-surface p-4 text-sm text-ink-muted">
+        <p className="card p-4 text-sm text-ink-muted">
           Queue clear — every transaction has a category.
         </p>
       )}
 
       {rows.length > 0 && (
-        <div className="min-h-0 flex-1 overflow-y-auto rounded-lg bg-surface">
+        <div className="min-h-0 flex-1 overflow-y-auto card">
           <div className="flex items-center gap-2 border-b border-hairline px-3 py-2">
             <label className="flex min-h-11 min-w-11 items-center justify-center">
               <input
@@ -295,7 +295,7 @@ export function ReviewPage() {
           onClick={() => setSavePrompt(null)}
         >
           <div
-            className="w-full max-w-sm rounded-lg bg-surface p-4 shadow-soft"
+            className="w-full max-w-sm card p-4 shadow-soft"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="font-display text-base font-semibold text-ink">Save as rule?</h2>
@@ -319,7 +319,7 @@ export function ReviewPage() {
               <button
                 type="button"
                 disabled={createRule.isPending || applyRules.isPending || !savePrompt.pattern.trim()}
-                className="min-h-11 rounded-xl bg-flow px-4 text-sm font-semibold text-white disabled:opacity-50"
+                className="min-h-11 rounded-xl bg-flow px-4 text-sm font-semibold text-on-accent disabled:opacity-50"
                 onClick={() => void handleSaveRule(true)}
               >
                 Save rule & apply to queue
