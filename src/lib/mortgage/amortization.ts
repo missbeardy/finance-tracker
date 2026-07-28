@@ -93,3 +93,65 @@ export function currentProgress(terms: MortgageTerms, asOf: Date = new Date()): 
     percentPaid: terms.originalBalance > 0 ? principalPaid / terms.originalBalance : 0,
   }
 }
+
+const FORWARD_PROJECTION_CAP_MONTHS = 600 // 50 years — safety cap, not expected to bind
+
+/**
+ * Simulates forward from a real bank balance at the loan's contracted payment,
+ * so extra payments (or falling behind) shift the payoff date correctly instead
+ * of assuming the original schedule was followed exactly.
+ */
+function projectPayoff(
+  terms: MortgageTerms,
+  fromBalanceCents: number,
+  asOf: Date,
+): { paymentsRemaining: number; yearsRemaining: number; payoffDate: string } {
+  const payment = monthlyPayment(terms)
+  const r = terms.interestRate / 100 / 12
+  let balance = fromBalanceCents
+  let months = 0
+  while (balance > 0 && months < FORWARD_PROJECTION_CAP_MONTHS) {
+    const interest = Math.round(balance * r)
+    const principal = payment - interest
+    if (principal <= 0) {
+      months = FORWARD_PROJECTION_CAP_MONTHS
+      break
+    }
+    balance = Math.max(0, balance - principal)
+    months += 1
+  }
+  return {
+    paymentsRemaining: months,
+    yearsRemaining: months / 12,
+    payoffDate: formatISO(addMonths(asOf, months), { representation: 'date' }),
+  }
+}
+
+/**
+ * Progress using the real balance from a linked account's imported transactions,
+ * rather than assuming every payment landed exactly on the textbook schedule.
+ */
+export function progressFromActualBalance(
+  terms: MortgageTerms,
+  actualBalanceCents: number,
+  asOf: Date = new Date(),
+): MortgageProgress {
+  const principalPaid = Math.max(0, terms.originalBalance - actualBalanceCents)
+  const payment = monthlyPayment(terms)
+  const elapsedMonths = Math.max(0, differenceInCalendarMonths(asOf, parseISO(terms.startDate)))
+  // Best-effort split: total paid at the contracted amount, minus real principal paid.
+  const interestPaidToDate = Math.max(0, payment * elapsedMonths - principalPaid)
+  const projection = projectPayoff(terms, actualBalanceCents, asOf)
+
+  return {
+    monthlyPayment: payment,
+    currentBalance: actualBalanceCents,
+    principalPaid,
+    interestPaidToDate,
+    paymentsMade: elapsedMonths,
+    paymentsRemaining: projection.paymentsRemaining,
+    yearsRemaining: projection.yearsRemaining,
+    payoffDate: projection.payoffDate,
+    percentPaid: terms.originalBalance > 0 ? principalPaid / terms.originalBalance : 0,
+  }
+}

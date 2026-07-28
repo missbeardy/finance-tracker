@@ -9,10 +9,16 @@ import {
   type MortgageRow,
 } from '@/hooks/useMortgages'
 import { useAccounts } from '@/hooks/useAccounts'
+import { useAccountBalances } from '@/hooks/useAccountBalances'
 import { formatAud, parseDollarsToCents } from '@/lib/money'
 import { getErrorMessage } from '@/lib/errors'
 import { QueryError } from '@/components/QueryError'
-import { buildSchedule, currentProgress, type MortgageTerms } from '@/lib/mortgage/amortization'
+import {
+  buildSchedule,
+  currentProgress,
+  progressFromActualBalance,
+  type MortgageTerms,
+} from '@/lib/mortgage/amortization'
 
 type Draft = {
   name: string
@@ -58,6 +64,14 @@ function termsFromMortgage(m: MortgageRow): MortgageTerms {
 export function MortgagePage() {
   const { data: mortgages = [], isLoading, error, refetch } = useMortgages()
   const { data: accounts = [] } = useAccounts()
+  const { balances } = useAccountBalances()
+  const actualBalanceByAccountId = useMemo(() => {
+    const map = new Map<number, number>()
+    for (const b of balances) {
+      if (b.balanceCents != null) map.set(b.accountId, Math.abs(b.balanceCents))
+    }
+    return map
+  }, [balances])
   const createMortgage = useCreateMortgage()
   const updateMortgage = useUpdateMortgage()
   const deleteMortgage = useDeleteMortgage()
@@ -251,6 +265,7 @@ export function MortgagePage() {
             <MortgageCard
               key={m.id}
               mortgage={m}
+              actualBalanceCents={m.account_id != null ? actualBalanceByAccountId.get(m.account_id) ?? null : null}
               scheduleOpen={scheduleOpenId === m.id}
               onToggleSchedule={() =>
                 setScheduleOpenId(scheduleOpenId === m.id ? null : m.id)
@@ -275,19 +290,27 @@ export function MortgagePage() {
 
 function MortgageCard({
   mortgage,
+  actualBalanceCents,
   scheduleOpen,
   onToggleSchedule,
   onEdit,
   onDelete,
 }: {
   mortgage: MortgageRow
+  actualBalanceCents: number | null
   scheduleOpen: boolean
   onToggleSchedule: () => void
   onEdit: () => void
   onDelete: () => void
 }) {
   const terms = useMemo(() => termsFromMortgage(mortgage), [mortgage])
-  const progress = useMemo(() => currentProgress(terms), [terms])
+  const progress = useMemo(
+    () =>
+      actualBalanceCents != null
+        ? progressFromActualBalance(terms, actualBalanceCents)
+        : currentProgress(terms),
+    [terms, actualBalanceCents],
+  )
   const schedule = useMemo(() => (scheduleOpen ? buildSchedule(terms) : []), [terms, scheduleOpen])
   const yearlySchedule = useMemo(() => {
     if (!scheduleOpen) return []
@@ -323,6 +346,14 @@ function MortgageCard({
           </button>
         </div>
       </div>
+
+      <p className="mt-3 text-xs text-ink-muted">
+        {actualBalanceCents != null
+          ? 'Balance synced from imported transactions'
+          : mortgage.account_id != null
+            ? 'No imported balance yet — showing estimate from loan terms'
+            : 'Estimated from loan terms — link an account to sync the real balance'}
+      </p>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <Stat label="Balance remaining" value={formatAud(progress.currentBalance)} />

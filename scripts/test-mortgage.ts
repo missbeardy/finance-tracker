@@ -1,4 +1,9 @@
-import { monthlyPayment, buildSchedule, currentProgress } from '../src/lib/mortgage/amortization.ts'
+import {
+  monthlyPayment,
+  buildSchedule,
+  currentProgress,
+  progressFromActualBalance,
+} from '../src/lib/mortgage/amortization.ts'
 
 function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(msg)
@@ -79,6 +84,45 @@ function assert(cond: unknown, msg: string) {
   assert(schedule.length === 12, `expected 12 rows, got ${schedule.length}`)
   assert(schedule[schedule.length - 1]!.balance === 0, 'zero-rate loan should reach exactly 0')
   assert(schedule.every((r) => r.interest === 0), 'zero-rate loan should have no interest')
+}
+
+// Real balance ahead of schedule (extra payments) shortens the projected payoff
+{
+  const terms = {
+    originalBalance: 60_000_000,
+    interestRate: 5,
+    termYears: 25,
+    startDate: '2020-01-01',
+  }
+  const asOf = new Date('2026-01-01') // 6 years elapsed
+  const scheduleProgress = currentProgress(terms, asOf)
+  const aheadBalance = scheduleProgress.currentBalance - 5_000_000 // $50k ahead
+  const actualProgress = progressFromActualBalance(terms, aheadBalance, asOf)
+  assert(
+    actualProgress.currentBalance === aheadBalance,
+    'actual progress should report the real balance verbatim',
+  )
+  assert(
+    actualProgress.paymentsRemaining < scheduleProgress.paymentsRemaining,
+    'being ahead on balance should shorten the projected payoff',
+  )
+  assert(
+    actualProgress.principalPaid === terms.originalBalance - aheadBalance,
+    'principal paid should derive from the real balance',
+  )
+}
+
+// Real balance fully paid off projects zero months remaining
+{
+  const terms = {
+    originalBalance: 10_000_00,
+    interestRate: 4,
+    termYears: 10,
+    startDate: '2020-01-01',
+  }
+  const progress = progressFromActualBalance(terms, 0, new Date('2026-01-01'))
+  assert(progress.paymentsRemaining === 0, 'zero balance should mean zero payments remaining')
+  assert(progress.currentBalance === 0, 'paid-off balance should be zero')
 }
 
 console.log('mortgage amortization tests passed')
