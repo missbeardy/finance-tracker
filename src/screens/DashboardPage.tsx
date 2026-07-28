@@ -67,6 +67,51 @@ function periodFromParam(raw: string | null): PeriodKey {
   return 'this_month'
 }
 
+const HEADLINE_MIN_CENTS = 2000
+const HEADLINE_MIN_DELTA_PCT = 20
+const HEADLINE_MIN_NET_DIFF_CENTS = 2000
+
+type Headline = { text: string; tone: 'caution' | 'inbound' | 'neutral' }
+
+/** Picks the single most notable fact for this period: a big category swing, else the net vs last period. */
+function buildHeadline(
+  spendByCategory: CategoryTotal[],
+  net: number,
+  prevNet: number,
+): Headline | null {
+  const swings = spendByCategory.filter(
+    (c) => c.deltaPct != null && c.cents >= HEADLINE_MIN_CENTS && Math.abs(c.deltaPct) >= HEADLINE_MIN_DELTA_PCT,
+  )
+  if (swings.length > 0) {
+    const top = swings.sort(
+      (a, b) => Math.abs(b.deltaPct! * b.cents) - Math.abs(a.deltaPct! * a.cents),
+    )[0]!
+    const up = top.deltaPct! >= 0
+    return {
+      text: `${top.name} is ${up ? 'up' : 'down'} ${Math.round(Math.abs(top.deltaPct!))}% vs last month`,
+      tone: up ? 'caution' : 'inbound',
+    }
+  }
+
+  if (prevNet !== 0) {
+    const diff = net - prevNet
+    if (Math.abs(diff) >= HEADLINE_MIN_NET_DIFF_CENTS) {
+      return {
+        text: `You're ${formatAud(Math.abs(diff))} ${diff >= 0 ? 'ahead of' : 'behind'} last month`,
+        tone: diff >= 0 ? 'inbound' : 'caution',
+      }
+    }
+  }
+
+  return null
+}
+
+function daysAgoLabel(days: number): string {
+  if (days <= 0) return 'Updated today'
+  if (days === 1) return 'Updated yesterday'
+  return `Updated ${days}d ago`
+}
+
 /**
  * Home: money in/out, neon donut by category, expandable merchant rollups.
  */
@@ -92,6 +137,7 @@ export function DashboardPage() {
     inbound,
     outbound,
     net,
+    prevNet,
     spendByCategory,
     incomeByCategory,
     alerts,
@@ -100,6 +146,14 @@ export function DashboardPage() {
     refetch,
     data,
   } = useDashboardData(range)
+
+  const cadenceDays = settings?.reminder_cadence_days ?? 14
+  const daysSinceImport = alerts?.daysSinceImport ?? null
+  const isStale = daysSinceImport != null && daysSinceImport >= cadenceDays
+  const headline = useMemo(
+    () => (spendByCategory.length > 0 ? buildHeadline(spendByCategory, net, prevNet ?? 0) : null),
+    [spendByCategory, net, prevNet],
+  )
 
   const categories = (flowMode === 'out' ? spendByCategory : incomeByCategory) ?? []
   const flowTotal = flowMode === 'out' ? outbound : inbound
@@ -153,7 +207,15 @@ export function DashboardPage() {
             <h1 className="mt-1 font-display text-[28px] font-semibold tracking-tight text-white">
               Your money
             </h1>
-            <p className="mt-1 text-sm text-white/75">{range.label}</p>
+            <p className="mt-1 text-sm text-white/75">
+              {range.label}
+              {daysSinceImport != null && (
+                <span className={isStale ? 'text-white' : undefined}>
+                  {' '}
+                  · {daysAgoLabel(daysSinceImport)}
+                </span>
+              )}
+            </p>
           </div>
           <label className="sr-only" htmlFor="dash-period">
             Period
@@ -221,6 +283,21 @@ export function DashboardPage() {
           <QueryError message={getErrorMessage(error)} onRetry={() => void refetch()} />
         )}
 
+        {headline && (
+          <p
+            className={[
+              'card px-4 py-3 text-sm font-medium',
+              headline.tone === 'caution'
+                ? 'text-caution'
+                : headline.tone === 'inbound'
+                  ? 'text-inbound'
+                  : 'text-ink',
+            ].join(' ')}
+          >
+            {headline.text}
+          </p>
+        )}
+
         {(alerts?.uncategorised ?? 0) > 0 && (
           <Link
             to="/review"
@@ -230,6 +307,31 @@ export function DashboardPage() {
               {alerts!.uncategorised} uncategorised — review to clean this up
             </span>
             <span className="text-sm font-semibold text-flow">Review →</span>
+          </Link>
+        )}
+
+        {(alerts?.pendingTransfers ?? 0) > 0 && (
+          <Link
+            to="/transfers"
+            className="card flex min-h-11 items-center justify-between px-4 py-3"
+          >
+            <span className="text-sm text-ink">
+              {alerts!.pendingTransfers} transfer{alerts!.pendingTransfers === 1 ? '' : 's'} waiting
+              on confirmation
+            </span>
+            <span className="text-sm font-semibold text-flow">Review →</span>
+          </Link>
+        )}
+
+        {isStale && (
+          <Link
+            to="/import"
+            className="card flex min-h-11 items-center justify-between px-4 py-3"
+          >
+            <span className="text-sm text-ink">
+              {daysSinceImport} days since your last import — these figures may be out of date
+            </span>
+            <span className="text-sm font-semibold text-flow">Import →</span>
           </Link>
         )}
 
@@ -408,6 +510,23 @@ export function DashboardPage() {
                           <span className="ledger-mono mt-1 block text-xs text-ink-muted">
                             {pct}%
                           </span>
+                          {cat.deltaPct != null && Math.round(Math.abs(cat.deltaPct)) > 0 && (
+                            <span
+                              className={[
+                                'mt-0.5 block text-[11px]',
+                                cat.deltaPct >= 0
+                                  ? flowMode === 'out'
+                                    ? 'text-caution'
+                                    : 'text-inbound'
+                                  : flowMode === 'out'
+                                    ? 'text-inbound'
+                                    : 'text-caution',
+                              ].join(' ')}
+                            >
+                              {cat.deltaPct >= 0 ? '+' : ''}
+                              {Math.round(cat.deltaPct)}% vs last mo
+                            </span>
+                          )}
                         </span>
                       </button>
 

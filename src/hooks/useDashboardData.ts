@@ -111,6 +111,7 @@ export function useDashboardData(range: DateRange) {
     const current = query.data?.current ?? []
     const previous = query.data?.previous ?? []
     const live = current.filter(isSpending)
+    const livePrev = previous.filter(isSpending)
 
     let inbound = 0
     let outbound = 0
@@ -120,6 +121,11 @@ export function useDashboardData(range: DateRange) {
       else outbound += Math.abs(amount)
     }
     const net = inbound - outbound
+
+    let prevNet = 0
+    for (const t of livePrev) {
+      prevNet += flowAmount(t)
+    }
 
     const byCat = new Map<number, CategoryTotal>()
     const byIncomeCat = new Map<number, CategoryTotal>()
@@ -184,6 +190,7 @@ export function useDashboardData(range: DateRange) {
       inbound,
       outbound,
       net,
+      prevNet,
       discretionary: net,
       topCategories,
       spendByCategory,
