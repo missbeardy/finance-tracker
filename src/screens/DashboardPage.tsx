@@ -10,7 +10,7 @@ import { getErrorMessage } from '@/lib/errors'
 import { COLOR_TOKEN_HEX } from '@/lib/accounts'
 import { categoryEmoji } from '@/lib/categoryEmoji'
 
-const PERIODS: PeriodKey[] = ['this_month', 'last_month', 'pay_cycle']
+const PERIODS: PeriodKey[] = ['this_month', 'last_month', 'last_pay_cycle']
 const PIE_SLICE_LIMIT = 7
 
 type FlowMode = 'out' | 'in'
@@ -220,27 +220,33 @@ export function DashboardPage() {
           <label className="sr-only" htmlFor="dash-period">
             Period
           </label>
-          <select
-            id="dash-period"
-            className="min-h-11 rounded-2xl border-0 bg-white/20 px-3 text-sm font-semibold text-white backdrop-blur-md outline-none"
-            value={period}
-            onChange={(e) => {
-              const next = e.target.value as PeriodKey
-              setPeriod(next)
-              setExpandedId(null)
-              setSearchParams(next === 'this_month' ? {} : { period: next }, { replace: true })
-            }}
-          >
-            <option value="this_month" className="text-ink">
-              This month
-            </option>
-            <option value="last_month" className="text-ink">
-              Last month
-            </option>
-            <option value="pay_cycle" className="text-ink">
-              Pay cycle
-            </option>
-          </select>
+          <div className="min-h-11 rounded-2xl bg-white/20 backdrop-blur-md">
+            <select
+              id="dash-period"
+              className="min-h-11 rounded-2xl border-0 bg-transparent px-3 text-sm font-semibold text-white outline-none"
+              style={{ colorScheme: 'light' }}
+              value={period}
+              onChange={(e) => {
+                const next = e.target.value as PeriodKey
+                setPeriod(next)
+                setExpandedId(null)
+                setSearchParams(next === 'this_month' ? {} : { period: next }, { replace: true })
+              }}
+            >
+              <option value="this_month" style={{ backgroundColor: '#ffffff', color: '#0a0a12' }}>
+                This month
+              </option>
+              <option value="last_month" style={{ backgroundColor: '#ffffff', color: '#0a0a12' }}>
+                Last month
+              </option>
+              <option
+                value="last_pay_cycle"
+                style={{ backgroundColor: '#ffffff', color: '#0a0a12' }}
+              >
+                Last pay cycle
+              </option>
+            </select>
+          </div>
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-3">

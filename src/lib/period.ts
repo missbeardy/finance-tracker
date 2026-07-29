@@ -10,7 +10,7 @@ import {
   parseISO,
 } from 'date-fns'
 
-export type PeriodKey = 'this_month' | 'last_month' | 'pay_cycle' | 'custom'
+export type PeriodKey = 'this_month' | 'last_month' | 'pay_cycle' | 'last_pay_cycle' | 'custom'
 
 export type DateRange = { start: string; end: string; label: string }
 
@@ -50,6 +50,21 @@ export function rangeForPeriod(
       start: format(start, 'yyyy-MM-dd'),
       end: format(endOfDay(end), 'yyyy-MM-dd').slice(0, 10),
       label: `Pay cycle ${format(start, 'd MMM')} – ${format(end, 'd MMM')}`,
+    }
+  }
+
+  if (key === 'last_pay_cycle' && opts?.payday) {
+    const payday = startOfDay(parseISO(opts.payday))
+    // The most recently completed fortnightly cycle — one full cycle before the one containing today
+    const daysSince = differenceInCalendarDays(today, payday)
+    const cycles = Math.floor(daysSince / 14)
+    const currentStart = addDays(payday, cycles * 14)
+    const start = addDays(currentStart, -14)
+    const end = addDays(currentStart, -1)
+    return {
+      start: format(start, 'yyyy-MM-dd'),
+      end: format(end, 'yyyy-MM-dd'),
+      label: `Last pay cycle · ${format(start, 'd MMM')} – ${format(end, 'd MMM')}`,
     }
   }
 
